@@ -1,4 +1,4 @@
-# Async IDE
+# Albion IDE
 
 <p align="center">
   <img src="docs/assets/async-logo-desktop.svg" width="120" height="120" alt="Async Logo" />
