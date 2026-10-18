@@ -25,7 +25,6 @@ Thumbs.db
 # Electron main bundle (rebuild with npm run build:main)
 electron/main.bundle.cjs
 electron/main.bundle.cjs.map
-resources/builtin-team/
 
 # Local env / OS
 .env

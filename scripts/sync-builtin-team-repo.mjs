@@ -68,8 +68,13 @@ const sourceRoot = sourceCandidates.find((candidate) => {
 
 if (!sourceRoot) {
 	const triedPaths = sourceCandidates.join(', ');
-	console.error(`[builtin-team] source repo not found. tried: ${triedPaths}`);
-	process.exit(1);
+	if (fs.existsSync(targetRoot) && fs.readdirSync(targetRoot).length > 0) {
+		console.warn(`[builtin-team] source repo not found (${triedPaths}). Using existing bundled files in ${targetRoot}.`);
+		process.exit(0);
+	}
+	console.warn(`[builtin-team] source repo not found (${triedPaths}) and no existing target found. Creating empty directory.`);
+	ensureDir(targetRoot);
+	process.exit(0);
 }
 
 cleanDir(targetRoot);
