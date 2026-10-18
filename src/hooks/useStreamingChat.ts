@@ -338,11 +338,7 @@ export function useStreamingChatControls(runtime: StreamingSendRuntime) {
 			return;
 		}
 
-		const effectiveModelId = (opts?.modelIdOverride ?? rt.defaultModel).trim();
-		if (!effectiveModelId) {
-			rt.flashComposerAttachErr(rt.t('app.noModelSelected'));
-			return;
-		}
+		const effectiveModelId = (opts?.modelIdOverride || rt.defaultModel || 'auto').trim();
 		const effectiveMode = opts?.modeOverride ?? rt.composerMode;
 		if (effectiveMode === 'team') {
 			const missingRoles = findTeamRolesMissingModels(rt.teamSettings, rt.modelEntries);
@@ -925,10 +921,21 @@ export function useStreamingChatSubscription(runtime: StreamingSubscriptionRunti
 					rt.setMistakeLimitRequest(null);
 					rt.setPlanQuestionRequestId(null);
 					rt.clearStreamingToolPreviewNow();
-					rt.resetLiveAgentBlocks();
-					const errorLine = rt.t('app.errorPrefix', {
-						message: translateChatError(payload.message, rt.t),
-					});
+					const isCapExceeded =
+						payload.message.includes('daily free limit') ||
+						payload.message.includes('50 messages') ||
+						payload.message.includes('X-Albion-Cap-Exceeded') ||
+						payload.message.includes('cap_exceeded');
+
+					if (isCapExceeded) {
+						window.dispatchEvent(new CustomEvent('albion:cap-exceeded', { detail: { message: payload.message } }));
+					}
+
+					const errorLine = isCapExceeded
+						? "⚡ **Daily Free Limit Reached (50 messages)**\n\nYou've reached your daily free limit (50 messages). Upgrade to Starter ($8/mo) for unlimited fast requests, or your limit resets at midnight (00:00 UTC)."
+						: rt.t('app.errorPrefix', {
+								message: translateChatError(payload.message, rt.t),
+						  });
 					rt.setMessages((messages) => {
 						const last = messages[messages.length - 1];
 						if (last?.role === 'assistant' && last.content === errorLine) {

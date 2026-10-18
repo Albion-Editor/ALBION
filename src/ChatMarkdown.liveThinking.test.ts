@@ -62,7 +62,7 @@ describe('ChatMarkdown live thinking status', () => {
 		});
 
 		expect(html).toContain('ref-live-thinking-status');
-		expect(html).toContain('正在思考');
+		expect(html).toContain('Thinking');
 		expect(html).toContain('我正在整理结果');
 		expect(html).not.toContain('ref-preflight-thinking');
 		expect(html).not.toContain('ref-thought-block');
@@ -95,7 +95,7 @@ describe('ChatMarkdown live thinking status', () => {
 		});
 
 		expect(html).toContain('ref-live-thinking-status');
-		expect(html).toContain('正在思考');
+		expect(html).toContain('Thinking');
 		expect(html).not.toContain('ref-thought-block');
 		expect(html).not.toContain('Inspect the current UI state');
 		expect(html).not.toContain('Prepare the final response');

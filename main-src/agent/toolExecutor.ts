@@ -34,9 +34,9 @@ import {
 	isProbablyTextBuffer,
 	readTextFileIfExistsSync,
 	readTextFileSyncWithMetadata,
-	writeTextFileAtomicSync,
 	type TextEncoding,
 } from '../textEncoding.js';
+import { verifyAndApplyChange } from './trustEngine.js';
 import { setTodos, type TodoItem } from './todoStore.js';
 import { minimatch } from 'minimatch';
 import * as gitService from '../gitService.js';
@@ -1536,9 +1536,9 @@ export async function executeTool(
 			case 'view_image':
 				return executeViewImage(call, execCtx);
 			case 'Write':
-				return executeWriteToFile(call, hooks, execCtx);
+				return await executeWriteToFile(call, hooks, execCtx);
 			case 'Edit':
-				return executeStrReplace(call, hooks, execCtx);
+				return await executeStrReplace(call, hooks, execCtx);
 			case 'Glob':
 				return executeGlob(call, execCtx);
 			case 'list_dir':
@@ -2049,7 +2049,7 @@ function executeReadFile(call: ToolCall, execCtx: ToolExecutionContext): ToolRes
 	return { toolCallId: call.id, name: call.name, content: header + numbered + footer, isError: false };
 }
 
-function executeWriteToFile(call: ToolCall, hooks: ToolExecutionHooks, execCtx: ToolExecutionContext): ToolResult {
+async function executeWriteToFile(call: ToolCall, hooks: ToolExecutionHooks, execCtx: ToolExecutionContext): Promise<ToolResult> {
 	const rawPath = readToolFileArg(call);
 	const content = String(call.arguments.content ?? '');
 	if (!rawPath) return { toolCallId: call.id, name: call.name, content: 'Error: file_path is required', isError: true };
@@ -2086,9 +2086,31 @@ function executeWriteToFile(call: ToolCall, hooks: ToolExecutionHooks, execCtx: 
 			};
 		}
 	}
-	void hooks.beforeWrite?.({ path: relPath, previousContent });
-	writeTextFileAtomicSync(full, content, encoding);
-	void hooks.afterWrite?.({ path: relPath, previousContent, nextContent: content });
+
+	const hookRes = await verifyAndApplyChange({
+		workspaceRoot: execCtx.workspaceRoot || path.dirname(full),
+		relPath,
+		full,
+		newContent: content,
+		encoding,
+		previousContent,
+		beforeWrite: hooks.beforeWrite ? (m) => void hooks.beforeWrite?.(m) : undefined,
+		afterWrite: hooks.afterWrite ? (m) => void hooks.afterWrite?.(m) : undefined,
+	});
+
+	if (!hookRes.success) {
+		const retryMsg = hookRes.retryCount
+			? ` (attempt ${hookRes.retryCount}/2)`
+			: hookRes.maxRetriesExceeded
+			? ` (max retries exceeded)`
+			: '';
+		return {
+			toolCallId: call.id,
+			name: call.name,
+			content: `Error: verification failed for ${relPath}${retryMsg}.\n\n${hookRes.errorContext || ''}`,
+			isError: true,
+		};
+	}
 
 	const lineCount = content.split('\n').length;
 	return {
@@ -2099,7 +2121,7 @@ function executeWriteToFile(call: ToolCall, hooks: ToolExecutionHooks, execCtx: 
 	};
 }
 
-function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, execCtx: ToolExecutionContext): ToolResult {
+async function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, execCtx: ToolExecutionContext): Promise<ToolResult> {
 	const rawPath = readToolFileArg(call);
 	const rawOldStr = String(call.arguments.old_string ?? call.arguments.old_str ?? '');
 	const rawNewStr = String(call.arguments.new_string ?? call.arguments.new_str ?? '');
@@ -2173,9 +2195,30 @@ function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, execCtx: T
 				isError: true,
 			};
 		}
-		void hooks.beforeWrite?.({ path: relPath, previousContent: source });
-		writeTextFileAtomicSync(full, patchedAll, meta.encoding);
-		void hooks.afterWrite?.({ path: relPath, previousContent: source, nextContent: patchedAll });
+		const hookRes = await verifyAndApplyChange({
+			workspaceRoot: execCtx.workspaceRoot || path.dirname(full),
+			relPath,
+			full,
+			newContent: patchedAll,
+			encoding: meta.encoding,
+			previousContent: source,
+			beforeWrite: hooks.beforeWrite ? (m) => void hooks.beforeWrite?.(m) : undefined,
+			afterWrite: hooks.afterWrite ? (m) => void hooks.afterWrite?.(m) : undefined,
+		});
+
+		if (!hookRes.success) {
+			const retryMsg = hookRes.retryCount
+				? ` (attempt ${hookRes.retryCount}/2)`
+				: hookRes.maxRetriesExceeded
+				? ` (max retries exceeded)`
+				: '';
+			return {
+				toolCallId: call.id,
+				name: call.name,
+				content: `Error: verification failed for ${relPath}${retryMsg}.\n\n${hookRes.errorContext || ''}`,
+				isError: true,
+			};
+		}
 		return {
 			toolCallId: call.id,
 			name: call.name,
@@ -2237,9 +2280,31 @@ function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, execCtx: T
 
 	const lineNumber = source.slice(0, idx).split('\n').length;
 	const patched = source.slice(0, idx) + newStr + source.slice(idx + matchLen);
-	void hooks.beforeWrite?.({ path: relPath, previousContent: source });
-	writeTextFileAtomicSync(full, patched, meta.encoding);
-	void hooks.afterWrite?.({ path: relPath, previousContent: source, nextContent: patched });
+
+	const hookRes = await verifyAndApplyChange({
+		workspaceRoot: execCtx.workspaceRoot || path.dirname(full),
+		relPath,
+		full,
+		newContent: patched,
+		encoding: meta.encoding,
+		previousContent: source,
+		beforeWrite: hooks.beforeWrite ? (m) => void hooks.beforeWrite?.(m) : undefined,
+		afterWrite: hooks.afterWrite ? (m) => void hooks.afterWrite?.(m) : undefined,
+	});
+
+	if (!hookRes.success) {
+		const retryMsg = hookRes.retryCount
+			? ` (attempt ${hookRes.retryCount}/2)`
+			: hookRes.maxRetriesExceeded
+			? ` (max retries exceeded)`
+			: '';
+		return {
+			toolCallId: call.id,
+			name: call.name,
+			content: `Error: verification failed for ${relPath}${retryMsg}.\n\n${hookRes.errorContext || ''}`,
+			isError: true,
+		};
+	}
 
 	return {
 		toolCallId: call.id,

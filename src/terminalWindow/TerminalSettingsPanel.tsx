@@ -258,7 +258,7 @@ export const TerminalSettingsPanel = memo(function TerminalSettingsPanel({
 		<div className="ref-uterm-settings-workspace">
 			<aside className="ref-uterm-settings-sidebar">
 				<div className="ref-uterm-settings-sidebar-head">
-					<div className="ref-uterm-settings-sidebar-kicker">Async</div>
+					<div className="ref-uterm-settings-sidebar-kicker">Albion</div>
 					<div className="ref-uterm-settings-sidebar-title">{t('app.universalTerminalSettings.sidebarTitle')}</div>
 				</div>
 				<nav className="ref-uterm-settings-sidebar-nav" aria-label={t('app.universalTerminalSettings.sidebarTitle')}>

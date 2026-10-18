@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AgentDiffCard } from './AgentDiffCard';
+import { TrustBadge } from './TrustBadge';
 import type { AgentPendingPatch } from './ipcTypes';
 import { useI18n } from './i18n';
 
@@ -106,16 +107,24 @@ export function AgentReviewPanel({
 								<span className="ref-agent-review-row-label" title={p.relPath ?? undefined}>
 									{p.relPath ?? t('agent.review.unknownPath')}
 								</span>
-								<button
-									type="button"
-									className="ref-agent-review-btn ref-agent-review-btn--sm"
-									disabled={busy}
-									onClick={() => onApplyOne(p.id)}
-								>
-									{t('agent.review.applyOne')}
-								</button>
+								<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+									<TrustBadge verification={p.verification} />
+									<button
+										type="button"
+										className="ref-agent-review-btn ref-agent-review-btn--sm"
+										disabled={busy}
+										onClick={() => onApplyOne(p.id)}
+									>
+										{t('agent.review.applyOne')}
+									</button>
+								</div>
 							</div>
-							<AgentDiffCard diff={p.chunk} workspaceRoot={workspaceRoot} onOpenFile={onOpenFile} />
+							<AgentDiffCard
+								diff={p.chunk}
+								workspaceRoot={workspaceRoot}
+								verification={p.verification}
+								onOpenFile={onOpenFile}
+							/>
 						</div>
 					))}
 				</div>

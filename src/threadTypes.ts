@@ -15,6 +15,7 @@ export type ThreadInfo = {
 	subtitleFallback?: string;
 	tokenUsage?: { totalInput: number; totalOutput: number };
 	fileStateCount?: number;
+	workspaceRoot?: string;
 };
 
 export type ThreadListVersion = {

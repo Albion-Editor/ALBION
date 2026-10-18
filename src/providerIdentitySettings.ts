@@ -46,12 +46,12 @@ export const ANTIGRAVITY_USER_AGENT = `antigravity/${ANTIGRAVITY_EMULATED_VERSIO
 const ASYNC_DEFAULT_IDENTITY: ResolvedProviderIdentitySettings = {
 	preset: 'async-default',
 	userAgentMode: 'generic',
-	userAgentProduct: 'async-ide',
+	userAgentProduct: 'albion-ide',
 	entrypoint: 'desktop',
 	appHeaderValue: 'desktop',
-	clientAppValue: 'async-ide',
-	sessionHeaderName: 'X-Async-Session-Id',
-	systemPromptPrefix: 'You are Async, the AI coding assistant running inside Async IDE.',
+	clientAppValue: 'albion-ide',
+	sessionHeaderName: 'X-Albion-Session-Id',
+	systemPromptPrefix: 'You are Albion AI, an expert agentic AI coding assistant built for the Albion IDE.',
 	anthropicMetadataMode: 'async',
 };
 
@@ -167,12 +167,12 @@ function inferPreset(raw?: ProviderIdentitySettings | null): ProviderIdentityPre
 
 export function defaultProviderIdentitySettings(): ProviderIdentitySettings {
 	return {
-		preset: 'claude-code',
-		userAgentProduct: CLAUDE_CODE_IDENTITY.userAgentProduct,
-		entrypoint: CLAUDE_CODE_IDENTITY.entrypoint,
-		appHeaderValue: CLAUDE_CODE_IDENTITY.appHeaderValue,
-		clientAppValue: CLAUDE_CODE_IDENTITY.clientAppValue,
-		systemPromptPrefix: CLAUDE_CODE_IDENTITY.systemPromptPrefix,
+		preset: 'async-default',
+		userAgentProduct: ASYNC_DEFAULT_IDENTITY.userAgentProduct,
+		entrypoint: ASYNC_DEFAULT_IDENTITY.entrypoint,
+		appHeaderValue: ASYNC_DEFAULT_IDENTITY.appHeaderValue,
+		clientAppValue: ASYNC_DEFAULT_IDENTITY.clientAppValue,
+		systemPromptPrefix: ASYNC_DEFAULT_IDENTITY.systemPromptPrefix,
 	};
 }
 
@@ -227,7 +227,7 @@ export function providerIdentityPresetOptions(): Array<{
 	label: string;
 }> {
 	return [
-		{ id: 'async-default', userAgentMode: 'generic', label: 'Async' },
+		{ id: 'async-default', userAgentMode: 'generic', label: 'Albion' },
 		{ id: 'claude-code', userAgentMode: 'claude-code', label: 'Claude Code' },
 		{ id: 'codex', userAgentMode: 'codex', label: 'Codex CLI' },
 		{ id: 'antigravity', userAgentMode: 'antigravity', label: 'Antigravity' },

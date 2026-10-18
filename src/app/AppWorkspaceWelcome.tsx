@@ -39,10 +39,10 @@ export const AppWorkspaceWelcome = memo(function AppWorkspaceWelcome({
 				<div className="ref-editor-welcome-inner">
 					<section className="ref-editor-launchpad">
 						<div className="ref-editor-welcome-brand">
-							<BrandLogo className="ref-editor-welcome-logo" size={44} />
+							<BrandLogo className="ref-editor-welcome-logo" size={62} />
 							<div className="ref-editor-welcome-brand-text">
-								<span className="ref-editor-welcome-wordmark">Async</span>
-								<span className="ref-editor-welcome-tagline">{t('app.editorWelcomeTagline')}</span>
+								<span className="ref-editor-welcome-wordmark">Albion</span>
+								<span className="ref-editor-welcome-tagline">AI-Native IDE · Predictable Costs · Verified Code</span>
 							</div>
 						</div>
 						<div

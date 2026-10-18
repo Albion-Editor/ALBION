@@ -61,8 +61,8 @@ function configureUpdater(): void {
 	// 设置 GitHub 仓库（从 package.json 的 repository 或硬编码）
 	autoUpdater.setFeedURL({
 		provider: 'github',
-		owner: 'ZYKJShadow',
-		repo: 'Async',
+		owner: 'albion-dev',
+		repo: 'albion',
 	});
 
 	autoUpdater.on('checking-for-update', () => {
@@ -106,7 +106,7 @@ function configureUpdater(): void {
 			const downloadedFile = getDownloadedUpdatePath();
 			if (downloadedFile) {
 				const downloadsDir = join(app.getPath('home'), 'Downloads');
-				const dest = join(downloadsDir, `Async-IDE-${info.version}-mac-update.zip`);
+				const dest = join(downloadsDir, `Albion-IDE-${info.version}-mac-update.zip`);
 				try {
 					if (!existsSync(downloadsDir)) {
 						mkdirSync(downloadsDir, { recursive: true });

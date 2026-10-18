@@ -147,19 +147,31 @@ export function mergeEnabledIdsWithAllModels(
 	return out;
 }
 
-/** 若 defaultModel 无效、为空或为旧版 `auto`，返回空字符串（须用户显式选择模型） */
+/** Albion: validate model ID — 'auto' means Smart Router, specific IDs are tier-gated */
 export function coerceDefaultModel(
 	defaultModel: string | undefined,
 	entries: UserModelEntry[],
 	enabledIds: string[]
 ): string {
 	const raw = (defaultModel ?? '').trim();
-	if (!raw || raw.toLowerCase() === 'auto') {
-		return '';
+	// '' or 'auto' = Smart Router (proxy handles routing based on tier)
+	if (!raw || raw.toLowerCase() === 'auto' || raw === 'albion.model.auto') {
+		return 'auto';
 	}
+	// Known Albion-managed model IDs — preserve them directly
+	if (
+		raw === 'deepseek-v4-flash' ||
+		raw === 'deepseek-v4-pro' ||
+		raw === 'glm-5.2' ||
+		raw === 'qwen3.6-35b-a3b' ||
+		raw === 'qwen-2.5-coder'
+	) {
+		return raw;
+	}
+	// Check user-configured models
 	const en = new Set(enabledIds);
 	const exists = entries.some((e) => e.id === raw && en.has(e.id));
-	return exists ? raw : '';
+	return exists ? raw : 'auto';
 }
 
 export function paradigmLabel(p: ModelRequestParadigm): string {

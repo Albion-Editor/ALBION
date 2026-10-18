@@ -11,9 +11,9 @@ import * as forge from 'node-forge';
 import { addBrowserCaptureExternalRequestForHostId } from './browserCapture.js';
 
 const DEFAULT_PROXY_PORT = 8888;
-const CA_KEY_FILE = 'async-capture-ca-key.pem';
-const CA_CERT_FILE = 'async-capture-ca.pem';
-const CA_DOWNLOAD_PATH = '/__async_capture/ca.pem';
+const CA_KEY_FILE = 'albion-capture-ca-key.pem';
+const CA_CERT_FILE = 'albion-capture-ca.pem';
+const CA_DOWNLOAD_PATH = '/__albion_capture/ca.pem';
 const MAX_CAPTURE_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_CERT_CACHE_SIZE = 300;
 
@@ -149,8 +149,8 @@ class BrowserCaptureCaStore {
 		cert.validity.notBefore = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
 		cert.validity.notAfter = new Date(now.getFullYear() + 10, now.getMonth(), now.getDate());
 		const attrs: forge.pki.CertificateField[] = [
-			{ shortName: 'CN', value: 'Async IDE Local Capture Root' },
-			{ shortName: 'O', value: 'Async IDE' },
+			{ shortName: 'CN', value: 'Albion IDE Local Capture Root' },
+			{ shortName: 'O', value: 'Albion IDE' },
 		];
 		cert.setSubject(attrs);
 		cert.setIssuer(attrs);
@@ -351,7 +351,7 @@ class BrowserCaptureMitmProxyService {
 			clientSocket.end('HTTP/1.1 500 Internal Server Error\r\n\r\n');
 			return;
 		}
-		clientSocket.write('HTTP/1.1 200 Connection Established\r\nProxy-Agent: Async IDE Capture\r\n\r\n');
+		clientSocket.write('HTTP/1.1 200 Connection Established\r\nProxy-Agent: Albion IDE Capture\r\n\r\n');
 		const tlsSocket = new tls.TLSSocket(clientSocket, {
 			isServer: true,
 			secureContext,
@@ -636,7 +636,7 @@ function buildUpstreamHeaders(headers: http.IncomingHttpHeaders, hostHeader: str
 		out[name] = value;
 	}
 	out.host = hostHeader;
-	out.via = appendHeaderValue(headers.via, 'Async IDE Capture');
+	out.via = appendHeaderValue(headers.via, 'Albion IDE Capture');
 	return out;
 }
 

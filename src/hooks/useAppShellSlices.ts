@@ -15,6 +15,7 @@ import {
 	readStoredColorMode,
 } from '../colorMode';
 import {
+	INITIAL_WINDOW_THEME_STORAGE_KEY,
 	persistInitialWindowThemeSnapshot,
 	type InitialWindowThemeSnapshot,
 } from '../initialWindowTheme';
@@ -169,6 +170,38 @@ export function useAppShellSlices(params: UseAppShellSlicesParams): UseAppShellS
 			symbolColor: c.symbolColor,
 		});
 	}, [shell, colorMode, appearanceSettings, effectiveScheme, settings.settingsPageOpen]);
+
+	// ── Global theme synchronization (IPC + cross-window storage) ────────────
+	// When theme is changed in any layout/window, sync it here instantly.
+	useEffect(() => {
+		if (!shell?.subscribeThemeMode) return;
+		return shell.subscribeThemeMode((raw: unknown) => {
+			const data = raw as { colorMode?: AppColorMode } | undefined;
+			if (data?.colorMode && data.colorMode !== colorMode) {
+				setColorMode(data.colorMode);
+			}
+		});
+	}, [shell, colorMode]);
+
+	useEffect(() => {
+		const onStorage = (e: StorageEvent) => {
+			if (e.key === INITIAL_WINDOW_THEME_STORAGE_KEY && e.newValue) {
+				try {
+					const parsed = JSON.parse(e.newValue);
+					if (parsed?.colorMode && parsed.colorMode !== colorMode) {
+						setColorMode(parsed.colorMode);
+					}
+					if (parsed?.ui) {
+						setAppearanceSettings(parsed.ui);
+					}
+				} catch {
+					/* ignore */
+				}
+			}
+		};
+		window.addEventListener('storage', onStorage);
+		return () => window.removeEventListener('storage', onStorage);
+	}, [colorMode]);
 
 	const [ipcOk, setIpcOk] = useState<string>('…');
 

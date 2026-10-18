@@ -302,7 +302,7 @@ export type ShellSettings = {
 };
 
 const defaultSettings: ShellSettings = {
-	language: 'zh-CN',
+	language: 'en',
 	thinkingLevel: 'medium',
 	recentWorkspaces: [],
 	lastOpenedWorkspace: null,
@@ -596,7 +596,10 @@ export function initSettingsStore(userData: string): void {
 	cached = migratedPm.next;
 	const migrated = migrateThinkingByModel(cached);
 	cached = migrated.next;
-	if (
+	if (cached.providerIdentity?.preset === 'claude-code' && (!cached.providerIdentity.systemPromptPrefix || cached.providerIdentity.systemPromptPrefix.includes('Claude Code'))) {
+		cached.providerIdentity = defaultProviderIdentitySettings();
+		save();
+	} else if (
 		migratedDm.didMutate ||
 		migratedPm.didMutate ||
 		migrated.didMutate

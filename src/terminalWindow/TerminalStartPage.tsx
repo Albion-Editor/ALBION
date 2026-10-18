@@ -35,11 +35,11 @@ export function TerminalStartPage({
 				<section className="ref-uterm-start-page-hero" aria-label={t('app.universalTerminalWindowTitle')}>
 					<div className="ref-uterm-start-page-brand">
 						<div className="ref-uterm-start-page-logo-wrap">
-							<BrandLogo className="ref-uterm-start-page-logo" size={42} aria-label="Async" />
+							<BrandLogo className="ref-uterm-start-page-logo" size={42} aria-label="Albion" />
 						</div>
 						<div className="ref-uterm-start-page-copyblock">
 							<div className="ref-uterm-start-page-kicker">{t('app.universalTerminalWindowTitle')}</div>
-							<h1 className="ref-uterm-start-page-title">Async</h1>
+							<h1 className="ref-uterm-start-page-title">Albion</h1>
 							<p className="ref-uterm-start-page-copy">{t('app.universalTerminalStartPageCopy')}</p>
 						</div>
 					</div>

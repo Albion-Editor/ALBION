@@ -78,6 +78,7 @@ export function useEditorMainPanelProps({
 			onSelectTab,
 			openWorkspacePicker,
 			er.activeEditorInlineDiff,
+			er.activeEditorTerminalId,
 			er.activeTabId,
 			er.awaitingReply,
 			er.beginResizeEditorTerminal,

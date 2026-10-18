@@ -16,6 +16,7 @@ import {
 	applyOpenAIProviderIdentity,
 	prependProviderIdentitySystemPrompt,
 } from './providerIdentity.js';
+import { applyAlbionTransport } from './albionTransport.js';
 import type { SendableMessage } from './sendResolved.js';
 import { userMessageTextForSend } from './sendResolved.js';
 import { buildOpenAIUserContent } from './resolvedUserSerialize.js';
@@ -52,21 +53,23 @@ export async function streamOpenAICompatible(
 		try {
 			httpAgent = new HttpsProxyAgent(proxyRaw);
 		} catch {
-			handlers.onError('代理地址无效，请在设置 → 模型 → 提供商中检查 HTTP 代理格式（如 http://127.0.0.1:7890）。');
+			handlers.onError('Invalid proxy address. Please check your HTTP proxy format in Settings → Models → Providers (e.g. http://127.0.0.1:7890).');
 			return;
 		}
 	}
 
 // maxRetries: 0，避免 SDK 对超时类失败自动重试拉长等待
 	const client = new OpenAI(
-		applyOpenAIProviderIdentity(settings, {
-			apiKey: key,
-			baseURL,
-			httpAgent,
-			dangerouslyAllowBrowser: false,
-			timeout: llmSdkResponseHeadTimeoutMs(),
-			maxRetries: 0,
-		}, options.requestProviderIdentity)
+		applyAlbionTransport(
+			applyOpenAIProviderIdentity(settings, {
+				apiKey: key,
+				baseURL,
+				httpAgent,
+				dangerouslyAllowBrowser: false,
+				timeout: llmSdkResponseHeadTimeoutMs(),
+				maxRetries: 0,
+			}, options.requestProviderIdentity)
+		)
 	);
 
 	const apiMessages = messages

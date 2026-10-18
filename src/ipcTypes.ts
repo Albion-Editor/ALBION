@@ -33,11 +33,20 @@ export function coerceThinkingByModelId(raw: unknown): Record<string, ThinkingLe
 	return out;
 }
 
+export type TrustVerificationResult = {
+	testsRun: boolean;
+	passed: boolean;
+	failedCount: number;
+	outputTail: string;
+	testsPassed?: number;
+};
+
 /** Agent 审阅：主进程解析出的待应用 unified diff 块 */
 export type AgentPendingPatch = {
 	id: string;
 	chunk: string;
 	relPath: string | null;
+	verification?: TrustVerificationResult;
 };
 
 /** 子 Agent 嵌套流：与主线程事件共用 type，凭 parentToolCallId 区分 */

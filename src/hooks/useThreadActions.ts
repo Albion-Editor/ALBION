@@ -609,7 +609,12 @@ export function useThreadActions(params: UseThreadActionsParams): UseThreadActio
 			if (wasEditingTitle) {
 				setEditingThreadWorkspacePath(null);
 			}
+			const targetWs = threadWorkspaceRoot ?? workspace;
+			const remainingThreads = threads.filter(
+				(t) => t.id !== id && (!targetWs || !workspace || normWorkspaceRootKey(t.workspaceRoot || targetWs) === normWorkspaceRootKey(targetWs))
+			);
 			if (wasCurrent) {
+				setCurrentId(null);
 				setMessages([]);
 				setMessagesThreadId(null);
 				setStreaming('');
@@ -624,10 +629,20 @@ export function useThreadActions(params: UseThreadActionsParams): UseThreadActio
 			clearAgentSession(id);
 			planQuestionDismissedByThreadRef.current.delete(id);
 			await refreshThreads();
+
+			if (wasCurrent && remainingThreads.length > 0) {
+				const nextThread = remainingThreads[0];
+				if (nextThread) {
+					void onSelectThread(nextThread.id, threadWorkspaceRoot);
+				}
+			}
 		},
 		[
 			shell,
 			currentId,
+			setCurrentId,
+			onSelectThread,
+			threads,
 			editingThreadId,
 			awaitingReply,
 			refreshThreads,
@@ -672,7 +687,7 @@ export function useThreadActions(params: UseThreadActionsParams): UseThreadActio
 				confirmDeleteTimerRef.current = setTimeout(() => {
 					setConfirmDeleteId(null);
 					confirmDeleteTimerRef.current = null;
-				}, 2500);
+				}, 4000);
 				return;
 			}
 			setConfirmDeleteId(null);

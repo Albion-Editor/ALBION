@@ -164,7 +164,7 @@ export function SettingsAutoUpdatePanel({ shell }: SettingsAutoUpdatePanelProps)
 				<div className="ref-settings-agent-card-row">
 					<div>
 						<div className="ref-settings-agent-card-title">
-							Async IDE v{currentVersion}
+							Albion IDE v{currentVersion}
 						</div>
 						<p className="ref-settings-agent-card-desc">
 							{updateStatus.state === 'not-available' 

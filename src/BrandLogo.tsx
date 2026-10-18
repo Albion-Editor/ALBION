@@ -1,7 +1,5 @@
-import { useId } from 'react';
-
 /**
- * Async 品牌标：参考新版 A/S 流线结构，收敛为适合小尺寸展示的灰银图标。
+ * Albion Brand Logo - Official Forward Slash Dual Stripes + Sovereign A
  */
 export function BrandLogo({
 	className,
@@ -12,37 +10,35 @@ export function BrandLogo({
 	size?: number;
 	'aria-label'?: string;
 }) {
-	const outerGradientId = useId();
-	const innerGradientId = useId();
-
 	return (
 		<svg
 			className={className}
 			width={size}
 			height={size}
-			viewBox="0 0 24 24"
+			viewBox="0 0 512 512"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			role={ariaLabel ? 'img' : undefined}
 			aria-hidden={ariaLabel ? undefined : true}
 			aria-label={ariaLabel}
 		>
-			<defs>
-				<linearGradient id={outerGradientId} x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
-					<stop offset="0" stopColor="#E2E8F0" />
-					<stop offset="0.5" stopColor="#FFFFFF" />
-					<stop offset="1" stopColor="#F1F5F9" />
-				</linearGradient>
-				<linearGradient id={innerGradientId} x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
-					<stop offset="0" stopColor="#94A3B8" />
-					<stop offset="1" stopColor="#CBD5E1" />
-				</linearGradient>
-			</defs>
+			{/* Left Blue Stripe 1 */}
 			<path
-				d="M12 3L3.5 18.5H8.5L12 12L15.5 18.5H20.5L12 3Z"
-				fill={`url(#${outerGradientId})`}
+				d="M 224 112 L 160 133 C 149 137 143 144 140 154 L 53 400 L 117 379 C 128 375 134 368 137 358 Z"
+				fill="#2582F8"
 			/>
-			<circle cx="12" cy="16" r="2" fill={`url(#${innerGradientId})`} />
+			{/* Left Blue Stripe 2 */}
+			<path
+				d="M 320 112 L 256 133 C 245 137 239 144 236 154 L 149 400 L 213 379 C 224 375 230 368 233 358 Z"
+				fill="#2582F8"
+			/>
+			{/* Gold Sun/Energy Circle */}
+			<circle cx="338.5" cy="327.5" r="61.5" fill="#FFAE00" />
+			{/* Gold A */}
+			<path
+				d="M 354 113 L 459 386 L 433 386 L 354 178 L 324 254 A 75 75 0 0 0 296 264 Z"
+				fill="#FFAE00"
+			/>
 		</svg>
 	);
 }

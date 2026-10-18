@@ -233,9 +233,9 @@ const CURSOR_LIGHT_SETTINGS_OPTION_BG = '#EFEFEF';
  */
 export const BUILTIN_COLOR_SCHEME_APPEARANCE: Record<'light' | 'dark', AppearanceChromeSeed> = {
 	dark: {
-		backgroundColor: '#11171C',
+		backgroundColor: '#0F172A',
 		foregroundColor: '#F3F7F8',
-		accentColor: '#37D6D4',
+		accentColor: '#3B82F6',
 		contrast: 58,
 		translucentSidebar: true,
 	},
@@ -1069,6 +1069,8 @@ export function applyAppearanceSettingsToDom(settings: AppAppearanceSettings, co
 	root.style.setProperty('--void-code-font-size-px', `${settings.codeFontSize}px`);
 	root.setAttribute('data-ui-font', settings.uiFontPreset);
 	root.setAttribute('data-code-font', settings.codeFontPreset);
+	root.setAttribute('data-theme-preset', settings.themePresetId);
+	root.setAttribute('data-color-scheme', colorScheme);
 	root.setAttribute('data-pointer-cursors', settings.usePointerCursors ? 'true' : 'false');
 	root.setAttribute('data-translucent-sidebar', settings.translucentSidebar ? 'true' : 'false');
 }

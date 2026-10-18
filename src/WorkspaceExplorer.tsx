@@ -348,6 +348,43 @@ export function WorkspaceExplorer({
 					style={{ left: menu.x, top: menu.y }}
 					onMouseDown={(e) => e.stopPropagation()}
 				>
+					<button
+						type="button"
+						role="menuitem"
+						className="ref-explorer-ctx-item"
+						onClick={() =>
+							runMenu(() => {
+								const targetDir = menuEnt.isDirectory ? menuEnt.rel : terminalCwdRelForEntry(menuEnt);
+								const name = window.prompt(t('explorer.newFilePrompt') || 'New File Name:');
+								if (name && name.trim()) {
+									const fullRel = targetDir ? `${targetDir}/${name.trim()}` : name.trim();
+									void shell.invoke('fs:writeFile', fullRel, '').then(() => {
+										onOpenFile(fullRel);
+									});
+								}
+							})
+						}
+					>
+						{t('explorer.newFile') || 'New File'}
+					</button>
+					<button
+						type="button"
+						role="menuitem"
+						className="ref-explorer-ctx-item"
+						onClick={() =>
+							runMenu(() => {
+								const targetDir = menuEnt.isDirectory ? menuEnt.rel : terminalCwdRelForEntry(menuEnt);
+								const name = window.prompt(t('explorer.newFolderPrompt') || 'New Folder Name:');
+								if (name && name.trim()) {
+									const fullRel = targetDir ? `${targetDir}/${name.trim()}` : name.trim();
+									void shell.invoke('fs:mkdir', fullRel);
+								}
+							})
+						}
+					>
+						{t('explorer.newFolder') || 'New Folder'}
+					</button>
+					<CtxMenuDivider />
 					{!menuEnt.isDirectory ? (
 						<button
 							type="button"

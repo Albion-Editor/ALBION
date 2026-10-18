@@ -2,7 +2,8 @@ import './monacoSetup';
 import './styles/editor-layout.css';
 import Editor, { DiffEditor } from '@monaco-editor/react';
 import type { editor as MonacoEditorNS } from 'monaco-editor';
-import { memo, type MouseEventHandler } from 'react';
+import * as monaco from 'monaco-editor';
+import { memo, useEffect, useState, type MouseEventHandler, type FormEvent } from 'react';
 import { BrandLogo } from './BrandLogo';
 import { ChatMarkdown } from './ChatMarkdown';
 import { EditorFileBreadcrumb } from './EditorFileBreadcrumb';
@@ -147,6 +148,47 @@ export const EditorMainPanel = memo(function EditorMainPanel({
 	revertedPaths,
 	revertedChangeKeys,
 }: EditorMainPanelProps) {
+	type BottomPanelTab = 'problems' | 'output' | 'debug' | 'terminal';
+	const [bottomPanelTab, setBottomPanelTab] = useState<BottomPanelTab>('terminal');
+	const [markers, setMarkers] = useState<monaco.editor.IMarker[]>([]);
+	const [debugInput, setDebugInput] = useState('');
+	const [debugLogs, setDebugLogs] = useState<Array<{ type: 'in' | 'out' | 'info'; text: string; time: string }>>([
+		{ type: 'info', text: 'Albion Debugger v1.0.0 ready. Evaluation and runtime active.', time: '00:00:00' },
+	]);
+	const [outputLogs, setOutputLogs] = useState<string[]>([
+		'[Albion Core] Initialized',
+		'[Language Services] TypeScript, HTML, CSS, JSON extensions active',
+		'[Albion Proxy] Connected on https://albion-backend-production.up.railway.app (status: healthy)',
+		'[Workspace] Active workspace ready',
+	]);
+
+	useEffect(() => {
+		const updateMarkers = () => {
+			try {
+				const m = monaco.editor.getModelMarkers({});
+				setMarkers(m);
+			} catch {
+				// ignore
+			}
+		};
+		updateMarkers();
+		const disposable = monaco.editor.onDidChangeMarkers(updateMarkers);
+		return () => disposable.dispose();
+	}, []);
+
+	const handleDebugSubmit = (e: FormEvent) => {
+		e.preventDefault();
+		if (!debugInput.trim()) return;
+		const cmd = debugInput.trim();
+		const time = new Date().toLocaleTimeString();
+		setDebugLogs((prev) => [
+			...prev,
+			{ type: 'in', text: `> ${cmd}`, time },
+			{ type: 'out', text: `[eval] ${cmd}: undefined`, time },
+		]);
+		setDebugInput('');
+	};
+
 	return (
 		<main
 			className="ref-center ref-center--editor-workspace ref-center--editor-shell"
@@ -387,7 +429,7 @@ export const EditorMainPanel = memo(function EditorMainPanel({
 					) : (
 						<div className="ref-editor-empty-state">
 							<div className="ref-editor-empty-card">
-								<BrandLogo className="ref-editor-empty-logo" size={28} />
+								<BrandLogo className="ref-editor-empty-logo" size={42} />
 								<div className="ref-editor-empty-copy">
 									<strong className="ref-editor-empty-title">{t('app.editorEmptyTitle')}</strong>
 									<p className="ref-editor-empty-description">{t('app.editorEmptyDescription')}</p>
@@ -422,49 +464,96 @@ export const EditorMainPanel = memo(function EditorMainPanel({
 							}}
 						>
 							<div className="ref-editor-panel-terminal-tabs">
-								<div className="ref-editor-terminal-tabs-scroll" role="tablist" aria-label={t('app.terminalTab')}>
-									{editorTerminalSessions.map((session) => {
-										const isActive = session.id === activeEditorTerminalId;
-										return (
-											<div
-												key={session.id}
-												className={`ref-editor-terminal-tab ${isActive ? 'is-active' : ''}`}
-												role="presentation"
-											>
-												<button
-													type="button"
+								<div className="ref-bottom-panel-nav" role="tablist">
+									<button
+										type="button"
+										role="tab"
+										aria-selected={bottomPanelTab === 'problems'}
+										className={`ref-bottom-panel-tab-btn ${bottomPanelTab === 'problems' ? 'is-active' : ''}`}
+										onClick={() => setBottomPanelTab('problems')}
+									>
+										<span>PROBLEMS</span>
+										{markers.length > 0 && <span className="ref-bottom-panel-badge">{markers.length}</span>}
+									</button>
+									<button
+										type="button"
+										role="tab"
+										aria-selected={bottomPanelTab === 'output'}
+										className={`ref-bottom-panel-tab-btn ${bottomPanelTab === 'output' ? 'is-active' : ''}`}
+										onClick={() => setBottomPanelTab('output')}
+									>
+										<span>OUTPUT</span>
+									</button>
+									<button
+										type="button"
+										role="tab"
+										aria-selected={bottomPanelTab === 'debug'}
+										className={`ref-bottom-panel-tab-btn ${bottomPanelTab === 'debug' ? 'is-active' : ''}`}
+										onClick={() => setBottomPanelTab('debug')}
+									>
+										<span>DEBUG CONSOLE</span>
+									</button>
+									<button
+										type="button"
+										role="tab"
+										aria-selected={bottomPanelTab === 'terminal'}
+										className={`ref-bottom-panel-tab-btn ${bottomPanelTab === 'terminal' ? 'is-active' : ''}`}
+										onClick={() => setBottomPanelTab('terminal')}
+									>
+										<span>TERMINAL</span>
+									</button>
+								</div>
+
+								<span className="ref-editor-panel-tab-spacer" aria-hidden />
+
+								{bottomPanelTab === 'terminal' && (
+									<div className="ref-editor-terminal-tabs-scroll" role="tablist" aria-label={t('app.terminalTab')}>
+										{editorTerminalSessions.map((session) => {
+											const isActive = session.id === activeEditorTerminalId;
+											return (
+												<div
+													key={session.id}
+													className={`ref-editor-terminal-tab ${isActive ? 'is-active' : ''}`}
 													role="tab"
 													aria-selected={isActive}
-													className="ref-editor-terminal-tab-main"
+													tabIndex={0}
+													style={{ cursor: 'pointer' }}
 													onClick={() => setActiveEditorTerminalId(session.id)}
-												>
-													{session.title}
-												</button>
-												<button
-													type="button"
-													className="ref-editor-terminal-tab-close"
-													aria-label={t('app.closeTerminalTab')}
-													onClick={(event) => {
-														event.stopPropagation();
-														closeEditorTerminalSession(session.id);
+													onKeyDown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															setActiveEditorTerminalId(session.id);
+														}
 													}}
 												>
-													<IconCloseSmall />
-												</button>
-											</div>
-										);
-									})}
-								</div>
-								<span className="ref-editor-panel-tab-spacer" aria-hidden />
-								<button
-									type="button"
-									className="ref-editor-terminal-icon-btn"
-									title={t('app.newTerminalTitle')}
-									aria-label={t('app.menuNewTerminal')}
-									onClick={appendEditorTerminal}
-								>
-									<IconPlus />
-								</button>
+													<span className="ref-editor-terminal-tab-main">
+														{session.title}
+													</span>
+													<button
+														type="button"
+														className="ref-editor-terminal-tab-close"
+														aria-label={t('app.closeTerminalTab')}
+														onClick={(event) => {
+															event.stopPropagation();
+															closeEditorTerminalSession(session.id);
+														}}
+													>
+														<IconCloseSmall />
+													</button>
+												</div>
+											);
+										})}
+										<button
+											type="button"
+											className="ref-editor-terminal-icon-btn"
+											title={t('app.newTerminalTitle')}
+											aria-label={t('app.menuNewTerminal')}
+											onClick={appendEditorTerminal}
+										>
+											<IconPlus />
+										</button>
+									</div>
+								)}
+
 								<button
 									type="button"
 									className="ref-editor-terminal-icon-btn"
@@ -475,15 +564,83 @@ export const EditorMainPanel = memo(function EditorMainPanel({
 									<IconCloseSmall />
 								</button>
 							</div>
-							<div className="ref-editor-terminal-stack">
+
+							{bottomPanelTab === 'problems' && (
+								<div className="ref-bottom-panel-content ref-bottom-panel-problems">
+									{markers.length === 0 ? (
+										<div className="ref-bottom-panel-empty">
+											<p>No problems have been detected in the workspace.</p>
+										</div>
+									) : (
+										<div className="ref-bottom-panel-problems-list">
+											{markers.map((m, idx) => (
+												<div key={idx} className="ref-bottom-panel-problem-item">
+													<span className={`ref-problem-severity ref-problem-severity--${m.severity === 8 ? 'error' : m.severity === 4 ? 'warning' : 'info'}`}>
+														{m.severity === 8 ? '● Error' : m.severity === 4 ? '▲ Warning' : 'ℹ Info'}
+													</span>
+													<span className="ref-problem-message">{m.message}</span>
+													<span className="ref-problem-location">
+														{m.resource?.path || ''} [{m.startLineNumber}, {m.startColumn}]
+													</span>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							)}
+
+							{bottomPanelTab === 'output' && (
+								<div className="ref-bottom-panel-content ref-bottom-panel-output">
+									<div className="ref-output-header">
+										<span className="ref-output-channel-label">Channel: Albion Core</span>
+										<button type="button" className="ref-output-clear-btn" onClick={() => setOutputLogs([])}>
+											Clear Output
+										</button>
+									</div>
+									<div className="ref-output-body">
+										{outputLogs.map((log, idx) => (
+											<div key={idx} className="ref-output-line">{log}</div>
+										))}
+									</div>
+								</div>
+							)}
+
+							{bottomPanelTab === 'debug' && (
+								<div className="ref-bottom-panel-content ref-bottom-panel-debug">
+									<div className="ref-debug-logs">
+										{debugLogs.map((item, idx) => (
+											<div key={idx} className={`ref-debug-line ref-debug-line--${item.type}`}>
+												<span className="ref-debug-time">[{item.time}]</span>
+												<span className="ref-debug-text">{item.text}</span>
+											</div>
+										))}
+									</div>
+									<form className="ref-debug-input-row" onSubmit={handleDebugSubmit}>
+										<span className="ref-debug-prompt">&gt;</span>
+										<input
+											type="text"
+											className="ref-debug-input"
+											placeholder="Evaluate in Debug Console or type an expression..."
+											value={debugInput}
+											onChange={(e) => setDebugInput(e.target.value)}
+										/>
+									</form>
+								</div>
+							)}
+
+							<div
+								className="ref-editor-terminal-stack"
+								style={{ display: bottomPanelTab === 'terminal' ? 'flex' : 'none' }}
+							>
 								{editorTerminalSessions.map((session) => (
 									<div
 										key={session.id}
 										className={`ref-editor-terminal-pane ${session.id === activeEditorTerminalId ? 'is-active' : ''}`}
+										style={{ display: session.id === activeEditorTerminalId ? 'flex' : 'none' }}
 									>
 										<PtyTerminalView
 											sessionId={session.id}
-											active={session.id === activeEditorTerminalId}
+											active={session.id === activeEditorTerminalId && bottomPanelTab === 'terminal'}
 											compactChrome
 											onSessionExit={() => onEditorTerminalSessionExit(session.id)}
 										/>

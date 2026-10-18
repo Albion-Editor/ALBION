@@ -159,6 +159,7 @@ export function createAppWindow(opts?: {
 				: {};
 
 	const win = new BrowserWindow({
+		title: 'Albion',
 		x,
 		y,
 		width: w,

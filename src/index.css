@@ -1,4 +1,4 @@
-﻿/* structure tokens (independent of light/dark mode) */
+/* structure tokens (independent of light/dark mode) */
 :root {
 	--void-ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
 	--void-ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -22,35 +22,35 @@
 :root:not([data-color-scheme]),
 :root[data-color-scheme='dark'] {
 	color-scheme: dark;
-	--void-bg-0: #111111;
-	--void-bg-1: #161616;
-	--void-bg-2: #1c1c1c;
-	--void-bg-3: #242424;
-	--void-fg-0: #f4f4f5;
-	--void-fg-1: #d6d6dc;
-	--void-fg-2: #a1a1aa;
-	--void-fg-3: #71717a;
-	--void-accent: #8b93ff;
-	--void-accent-contrast: #0f1222;
-	--void-accent-glow: rgba(129, 140, 248, 0.28);
-	--void-accent-soft: rgba(129, 140, 248, 0.12);
+	--void-bg-0: #0F172A;
+	--void-bg-1: #1E293B;
+	--void-bg-2: #243046;
+	--void-bg-3: #334155;
+	--void-fg-0: #f8fafc;
+	--void-fg-1: #e2e8f0;
+	--void-fg-2: #94a3b8;
+	--void-fg-3: #64748b;
+	--void-accent: #3B82F6;
+	--void-accent-contrast: #ffffff;
+	--void-accent-glow: rgba(59, 130, 246, 0.28);
+	--void-accent-soft: rgba(59, 130, 246, 0.12);
 	--void-thought-meta: #aab1bc;
 	--void-thought-body: #d3d8e0;
 	--void-thought-detail: #bcc3cd;
-	--void-border: #2a2a2a;
-	--void-border-soft: rgba(255, 255, 255, 0.06);
-	--void-ring: #818cf8;
+	--void-border: #243046;
+	--void-border-soft: rgba(255, 255, 255, 0.08);
+	--void-ring: #3B82F6;
 	--void-git-untracked: #73c991;
 	--void-git-modified: #e2c08d;
 	--void-git-added: #89d185;
 	--void-git-deleted: #f14c4c;
 	--void-git-ignored: #71717a;
-	--void-scrollbar-track: #141414;
-	--void-scrollbar-thumb: #333333;
-	--void-scrollbar-thumb-hover: #444444;
-	--void-scrollbar-thumb-active: #555555;
-	--ref-menubar-chrome-bg: #202020;
-	--void-sidebar-fill: #202020;
+	--void-scrollbar-track: #0F172A;
+	--void-scrollbar-thumb: #334155;
+	--void-scrollbar-thumb-hover: #475569;
+	--void-scrollbar-thumb-active: #64748b;
+	--ref-menubar-chrome-bg: #0F172A;
+	--void-sidebar-fill: #0F172A;
 	--void-shadow-card: 0 24px 80px rgba(0, 0, 0, 0.35);
 	--void-shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 	--surface-code-bg: color-mix(in srgb, var(--void-bg-2) 94%, var(--void-fg-0) 6%);
@@ -61,53 +61,53 @@
 	--ref-usage-heat-4: #34d399;
 	--ref-usage-chart-grid: rgba(255, 255, 255, 0.06);
 	--ref-usage-chart-axis: rgba(255, 255, 255, 0.45);
-	--ref-usage-chart-0: #818cf8;
+	--ref-usage-chart-0: #3B82F6;
 	--ref-usage-chart-1: #c084fc;
 	--ref-usage-chart-2: #f472b6;
 	--ref-usage-chart-3: #fb923c;
-	--ref-usage-chart-4: #facc15;
+	--ref-usage-chart-4: #F59E0B;
 	--ref-usage-chart-5: #4ade80;
 	--ref-usage-chart-6: #22d3ee;
 	--ref-usage-chart-7: #94a3b8;
 	--ref-usage-chart-8: #64748b;
-	--ref-usage-tooltip-bg: rgba(20, 24, 32, 0.96);
+	--ref-usage-tooltip-bg: rgba(15, 23, 42, 0.96);
 	--ref-usage-tooltip-border: rgba(255, 255, 255, 0.1);
 	--ref-usage-tooltip-fg: rgba(255, 255, 255, 0.9);
 }
 
 :root[data-color-scheme='light'] {
 	color-scheme: light;
-	--void-bg-0: #f5f5f7;
+	--void-bg-0: #ffffff;
 	--void-bg-1: #ffffff;
-	--void-bg-2: #ffffff;
-	--void-bg-3: #e8e8ed;
-	--void-fg-0: #1d1d1f;
-	--void-fg-1: #3a3a3c;
-	--void-fg-2: #636366;
-	--void-fg-3: #8e8e93;
-	--void-accent: #0a84ff;
+	--void-bg-2: #fafafa;
+	--void-bg-3: #f4f4f5;
+	--void-fg-0: #18181b;
+	--void-fg-1: #27272a;
+	--void-fg-2: #52525b;
+	--void-fg-3: #71717a;
+	--void-accent: #F59E0B;
 	--void-accent-contrast: #ffffff;
-	--void-accent-glow: rgba(19, 156, 255, 0.22);
-	--void-accent-soft: rgba(19, 156, 255, 0.1);
-	--void-thought-meta: #5c6470;
-	--void-thought-body: #334155;
-	--void-thought-detail: #475569;
-	--void-border: #d2d2d7;
-	--void-border-soft: rgba(0, 0, 0, 0.06);
-	--void-ring: #139cff;
-	--void-git-untracked: #1e8e3e;
-	--void-git-modified: #b06000;
-	--void-git-added: #1e8e3e;
-	--void-git-deleted: #d93025;
-	--void-git-ignored: #9aa0a6;
-	--void-scrollbar-track: #e8e8ed;
-	--void-scrollbar-thumb: #c7c7cc;
-	--void-scrollbar-thumb-hover: #aeaeb2;
-	--void-scrollbar-thumb-active: #8e8e93;
-	--ref-menubar-chrome-bg: #ececee;
-	--void-sidebar-fill: rgba(255, 255, 255, 0.72);
-	--void-shadow-card: 0 12px 48px rgba(0, 0, 0, 0.1);
-	--void-shadow-soft: 0 1px 0 rgba(0, 0, 0, 0.06) inset;
+	--void-accent-glow: rgba(245, 158, 11, 0.22);
+	--void-accent-soft: rgba(245, 158, 11, 0.1);
+	--void-thought-meta: #71717a;
+	--void-thought-body: #27272a;
+	--void-thought-detail: #52525b;
+	--void-border: #e4e4e7;
+	--void-border-soft: #f4f4f5;
+	--void-ring: #F59E0B;
+	--void-git-untracked: #16a34a;
+	--void-git-modified: #d97706;
+	--void-git-added: #16a34a;
+	--void-git-deleted: #dc2626;
+	--void-git-ignored: #a1a1aa;
+	--void-scrollbar-track: #f4f4f5;
+	--void-scrollbar-thumb: #d4d4d8;
+	--void-scrollbar-thumb-hover: #a1a1aa;
+	--void-scrollbar-thumb-active: #71717a;
+	--ref-menubar-chrome-bg: #ffffff;
+	--void-sidebar-fill: #fafafa;
+	--void-shadow-card: 0 12px 48px rgba(0, 0, 0, 0.08);
+	--void-shadow-soft: 0 1px 0 rgba(0, 0, 0, 0.04) inset;
 	/* 对话 Markdown 代码块等（未加载 mac-codex theme 时仍可读） */
 	--surface-code-bg: color-mix(in srgb, var(--void-bg-3) 94%, var(--void-fg-0) 6%);
 	--ref-usage-heat-0: rgba(30, 40, 50, 0.12);
@@ -15533,7 +15533,7 @@ body.is-resizing-browser-capture-dock {
 	color: #b0492a;
 }
 
-/* About Async IDE dialog ---------------------------------------------------- */
+/* About Albion IDE dialog --------------------------------------------------- */
 .ws-about-backdrop {
 	align-items: center;
 	padding: 24px;

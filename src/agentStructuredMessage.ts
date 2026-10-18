@@ -314,7 +314,7 @@ function summarizeBotToolOnlyReply(parts: AgentAssistantPart[]): string {
 			const ok = part.success === true;
 			switch (part.name) {
 				case 'get_async_session':
-					return ok ? '已读取当前 Async 会话信息。' : '读取当前 Async 会话信息失败。';
+					return ok ? '已读取当前 Albion 会话信息。' : '读取当前 Albion 会话信息失败。';
 				case 'switch_workspace':
 					return ok ? part.result.trim() || '已切换工作区。' : `切换工作区失败：${part.result.trim()}`;
 				case 'switch_model':

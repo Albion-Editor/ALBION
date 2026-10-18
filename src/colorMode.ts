@@ -10,17 +10,17 @@ export function normalizeColorMode(raw: unknown): AppColorMode {
 	if (raw === 'light' || raw === 'dark' || raw === 'system') {
 		return raw;
 	}
-	return 'system';
+	return 'dark';
 }
 
 export function readStoredColorMode(): AppColorMode {
 	try {
 		if (typeof window === 'undefined') {
-			return 'system';
+			return 'dark';
 		}
 		return normalizeColorMode(localStorage.getItem(COLOR_MODE_STORAGE_KEY));
 	} catch {
-		return 'system';
+		return 'dark';
 	}
 }
 

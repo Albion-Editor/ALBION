@@ -11,6 +11,9 @@ const INVOKE_CHANNELS = new Set([
 	'workspace:openInExternalTool',
 	'workspace:listRecents',
 	'workspace:get',
+	'albion:auth:save',
+	'albion:auth:get',
+	'albion:auth:clear',
 	'workspace:listDiskSkills',
 	'workspace:deleteSkillFromDisk',
 	'workspace:listFiles',
@@ -281,6 +284,19 @@ ipcRenderer.on('async-shell:themeMode', (_event, payload) => {
 	}
 });
 
+const authStateHandlers = new Map();
+let authStateSeq = 0;
+
+ipcRenderer.on('albion:auth:state-changed', (_event, payload) => {
+	for (const fn of authStateHandlers.values()) {
+		try {
+			fn(payload);
+		} catch (e) {
+			console.error(e);
+		}
+	}
+});
+
 ipcRenderer.on('async-shell:workspaceFsTouched', () => {
 	for (const fn of workspaceFsTouchedHandlers.values()) {
 		try {
@@ -461,6 +477,11 @@ contextBridge.exposeInMainWorld('asyncShell', {
 		const id = ++themeModeSeq;
 		themeModeHandlers.set(id, callback);
 		return () => themeModeHandlers.delete(id);
+	},
+	subscribeAuthState(callback) {
+		const id = ++authStateSeq;
+		authStateHandlers.set(id, callback);
+		return () => authStateHandlers.delete(id);
 	},
 	subscribeWorkspaceFsTouched(callback) {
 		const id = ++workspaceFsTouchedSeq;

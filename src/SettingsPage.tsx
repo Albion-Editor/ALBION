@@ -25,6 +25,7 @@ import type { AppColorMode, ThemeTransitionOrigin } from './colorMode';
 import type { McpServerConfig, McpServerStatus } from './mcpTypes';
 import { useI18n, type AppLocale, type TFunction } from './i18n';
 import { VoidSelect } from './VoidSelect';
+import type { AlbionUser } from './albionAuthStore';
 
 const SettingsAgentPanel = lazy(() => import('./SettingsAgentPanel').then((m) => ({ default: m.SettingsAgentPanel })));
 const SettingsAgentBehaviorPanel = lazy(() =>
@@ -42,6 +43,7 @@ const SettingsBrowserPanel = lazy(() => import('./SettingsBrowserPanel').then((m
 const SettingsPluginsPanel = lazy(() => import('./SettingsPluginsPanel').then((m) => ({ default: m.SettingsPluginsPanel })));
 
 export type SettingsNavId =
+	| 'account'
 	| 'general'
 	| 'appearance'
 	| 'editor'
@@ -59,6 +61,7 @@ export type SettingsNavId =
 
 /** 与 `app:requestOpenSettings` 白名单及侧栏顺序对齐，供运行时校验导航 id */
 export const ALL_SETTINGS_NAV_IDS: SettingsNavId[] = [
+	'account',
 	'general',
 	'appearance',
 	'editor',
@@ -193,6 +196,7 @@ type ProviderDiscoverModalState = {
 
 function navItemsForT(t: (key: string) => string): NavItem[] {
 	return [
+		{ id: 'account', label: 'Account' },
 		{ id: 'general', label: t('settings.nav.general') },
 		{ id: 'appearance', label: t('settings.nav.appearance') },
 		{ id: 'editor', label: t('settings.nav.editor') },
@@ -454,6 +458,13 @@ function IconSunNav({ className }: { className?: string }) {
 
 function navIcon(id: SettingsNavId) {
 	switch (id) {
+		case 'account':
+			return (
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+					<circle cx="12" cy="8" r="4" />
+					<path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
+				</svg>
+			);
 		case 'general':
 			return <IconSlidersNav />;
 		case 'appearance':
@@ -556,6 +567,10 @@ type Props = {
 	appearanceSettings: AppAppearanceSettings;
 	onChangeAppearanceSettings: (next: AppAppearanceSettings) => void | Promise<void>;
 	showTransientToast?: (ok: boolean, text: string, durationMs?: number) => void;
+	/** Current authenticated user (for Account tab) */
+	albionUser?: AlbionUser | null;
+	/** Sign-out callback — clears IPC token and resets all state */
+	onSignOut?: () => void | Promise<void>;
 };
 
 export type SettingsPageProps = Props;
@@ -599,6 +614,8 @@ export function SettingsPage({
 	appearanceSettings,
 	onChangeAppearanceSettings,
 	showTransientToast,
+	albionUser,
+	onSignOut,
 }: Props) {
 	const { t, locale, setLocale } = useI18n();
 	const navItems = useMemo(() => navItemsForT(t), [t]);
@@ -613,6 +630,86 @@ export function SettingsPage({
 	const oauthLoginTimeoutRef = useRef<number | undefined>(undefined);
 	const [sidebarWidth, setSidebarWidth] = useState(() => readSettingsSidebarWidth());
 	const [navPending, startNavTransition] = useTransition();
+
+	// In-IDE Checkout Modal State & Handlers
+	const [checkoutModal, setCheckoutModal] = useState<{
+		tier: 'learner' | 'starter' | 'pro';
+		title: string;
+		price: string;
+		ngnPrice: string;
+	} | null>(null);
+	const [checkoutEmail, setCheckoutEmail] = useState('');
+	const [checkoutLoading, setCheckoutLoading] = useState(false);
+	const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+	const openCheckoutModal = useCallback(
+		(plan: { id: 'learner' | 'starter' | 'pro'; name: string; price: string; ngnPrice: string }) => {
+			setCheckoutModal({
+				tier: plan.id,
+				title: plan.name,
+				price: plan.price,
+				ngnPrice: plan.ngnPrice,
+			});
+			setCheckoutEmail(albionUser?.email || '');
+			setCheckoutError(null);
+			setCheckoutLoading(false);
+		},
+		[albionUser?.email]
+	);
+
+	const handlePaystackCheckout = useCallback(async () => {
+		const emailToUse = (checkoutEmail || albionUser?.email || '').trim();
+		if (!emailToUse || !emailToUse.includes('@')) {
+			setCheckoutError('Please enter a valid email address.');
+			return;
+		}
+		if (!checkoutModal) return;
+
+		setCheckoutLoading(true);
+		setCheckoutError(null);
+
+		try {
+			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app';
+			const res = await fetch(`${proxyUrl}/api/checkout/paystack`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					email: emailToUse,
+					tier: checkoutModal.tier,
+					userId: albionUser?.id || null,
+					redirectUrl: 'https://albionide.com/auth/callback?status=payment_success',
+				}),
+			});
+			const data = (await res.json()) as { error?: string; authorization_url?: string };
+			if (!res.ok || !data.authorization_url) {
+				throw new Error(data.error || 'Failed to initialize Paystack checkout.');
+			}
+			if (shell?.invoke) {
+				void shell.invoke('shell:openExternalUrl', data.authorization_url);
+			} else {
+				window.open(data.authorization_url, '_blank');
+			}
+			setCheckoutModal(null);
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : 'Paystack initialization failed.';
+			setCheckoutError(msg);
+		} finally {
+			setCheckoutLoading(false);
+		}
+	}, [checkoutEmail, albionUser?.email, albionUser?.id, checkoutModal, shell]);
+
+	const handleLemonSqueezyCheckout = useCallback(() => {
+		const emailToUse = (checkoutEmail || albionUser?.email || '').trim();
+		if (!checkoutModal) return;
+		const emailParam = emailToUse ? `&checkout[email]=${encodeURIComponent(emailToUse)}` : '';
+		const storeUrl = `https://albion-ide.lemonsqueezy.com/buy?tier=${checkoutModal.tier}${emailParam}`;
+		if (shell?.invoke) {
+			void shell.invoke('shell:openExternalUrl', storeUrl);
+		} else {
+			window.open(storeUrl, '_blank');
+		}
+		setCheckoutModal(null);
+	}, [checkoutEmail, albionUser?.email, checkoutModal, shell]);
 	const resolvedProviderIdentity = useMemo(
 		() => resolveProviderIdentitySettings(providerIdentity),
 		[providerIdentity]
@@ -1128,6 +1225,7 @@ export function SettingsPage({
 						<div key={nav} className="ref-settings-nav-swap">
 						<div className="ref-settings-main-head">
 							<h1 className="ref-settings-title">
+								{nav === 'account' ? 'Account' : null}
 								{nav === 'general' ? t('settings.title.general') : null}
 								{nav === 'appearance' ? t('settings.title.appearance') : null}
 								{nav === 'agents' ? t('settings.title.agents') : null}
@@ -1150,6 +1248,354 @@ export function SettingsPage({
 								</div>
 							) : null}
 						</div>
+
+						{nav === 'account' ? (
+							<div className="ref-settings-panel">
+								{/* Account Identity Card */}
+								<div
+									style={{
+										backgroundColor: 'var(--surface-card-bg, var(--void-bg-1))',
+										border: '1px solid var(--void-border, rgba(255, 255, 255, 0.08))',
+										borderRadius: '12px',
+										padding: '24px',
+										marginBottom: '20px',
+										boxShadow: 'var(--void-shadow-card, 0 4px 12px rgba(0, 0, 0, 0.05))',
+									}}
+								>
+									<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+										<div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+											<div
+												style={{
+													width: '52px',
+													height: '52px',
+													borderRadius: '50%',
+													background: 'linear-gradient(135deg, #F59E0B 0%, #3B82F6 100%)',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													fontSize: '20px',
+													fontWeight: 700,
+													color: '#FFFFFF',
+													boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)',
+													flexShrink: 0,
+												}}
+											>
+												{(albionUser?.email ?? 'A').charAt(0).toUpperCase()}
+											</div>
+											<div>
+												<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+													<span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--void-fg-0, #f8fafc)' }}>
+														{albionUser?.email ?? 'Developer'}
+													</span>
+													<span
+														style={{
+															display: 'inline-flex',
+															alignItems: 'center',
+															gap: '4px',
+															padding: '2px 8px',
+															borderRadius: '12px',
+															backgroundColor: 'rgba(34, 197, 94, 0.12)',
+															color: '#22C55E',
+															fontSize: '11px',
+															fontWeight: 600,
+														}}
+													>
+														<span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22C55E' }} />
+														Connected
+													</span>
+												</div>
+												<div style={{ fontSize: '12px', color: 'var(--void-fg-2, #94a3b8)', marginTop: '4px' }}>
+													Albion Cloud Account ID: <code style={{ color: 'var(--void-fg-1, #cbd5e1)', fontFamily: 'monospace' }}>usr_{albionUser?.id?.slice(0, 8) ?? 'session'}</code>
+												</div>
+											</div>
+										</div>
+
+										<div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+											<button
+												type="button"
+												onClick={() => {
+													openCheckoutModal({
+														id: 'starter',
+														name: 'Starter',
+														price: '$8',
+														ngnPrice: '≈ ₦12,800 / month',
+													});
+												}}
+												style={{
+													display: 'inline-flex',
+													alignItems: 'center',
+													gap: '6px',
+													padding: '8px 14px',
+													borderRadius: '8px',
+													backgroundColor: 'var(--surface-control-bg, rgba(255, 255, 255, 0.06))',
+													border: '1px solid var(--void-border, rgba(255, 255, 255, 0.12))',
+													color: 'var(--void-fg-0, #f8fafc)',
+													fontSize: '12px',
+													fontWeight: 600,
+													cursor: 'pointer',
+													transition: 'all 0.15s ease',
+												}}
+											>
+												<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+													<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+													<polyline points="15 3 21 3 21 9" />
+													<line x1="10" y1="14" x2="21" y2="3" />
+												</svg>
+												Billing Portal
+											</button>
+										</div>
+									</div>
+
+									{/* Current Plan & Quota Overview */}
+									<div
+										style={{
+											display: 'grid',
+											gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+											gap: '12px',
+											padding: '16px',
+											borderRadius: '10px',
+											backgroundColor: 'var(--surface-control-bg, rgba(255, 255, 255, 0.03))',
+											border: '1px solid var(--void-border, rgba(255, 255, 255, 0.05))',
+										}}
+									>
+										<div>
+											<div style={{ fontSize: '11px', color: 'var(--void-fg-2, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Active Tier</div>
+											<div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+												<span
+													style={{
+														fontSize: '14px',
+														fontWeight: 700,
+														color: albionUser?.tier === 'pro' ? '#F59E0B' : albionUser?.tier === 'starter' ? '#3B82F6' : '#10B981',
+													}}
+												>
+													{(albionUser?.tier ?? 'FREE').toUpperCase()} PLAN
+												</span>
+											</div>
+										</div>
+										<div>
+											<div style={{ fontSize: '11px', color: 'var(--void-fg-2, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>AI Inference Routing</div>
+											<div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--void-fg-0, #f8fafc)', marginTop: '4px' }}>
+												DeepSeek R1 / V3 &amp; Qwen
+											</div>
+										</div>
+										<div>
+											<div style={{ fontSize: '11px', color: 'var(--void-fg-2, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>MCP &amp; Agent Capabilities</div>
+											<div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--void-fg-0, #f8fafc)', marginTop: '4px' }}>
+												Full Protocol Active
+											</div>
+										</div>
+									</div>
+								</div>
+
+								{/* Available Plans & Upgrades */}
+								<div
+									style={{
+										backgroundColor: 'var(--surface-card-bg, var(--void-bg-1))',
+										border: '1px solid var(--void-border, rgba(255, 255, 255, 0.08))',
+										borderRadius: '12px',
+										padding: '24px',
+										marginBottom: '20px',
+										boxShadow: 'var(--void-shadow-card, 0 4px 12px rgba(0, 0, 0, 0.05))',
+									}}
+								>
+									<div style={{ marginBottom: '16px' }}>
+										<div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--void-fg-0, #f8fafc)' }}>Subscription Plans</div>
+										<div style={{ fontSize: '12px', color: 'var(--void-fg-2, #94a3b8)', marginTop: '2px' }}>
+											Upgrade your plan to unlock priority cloud reasoning and elevated inference quotas.
+										</div>
+									</div>
+
+									<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+										{([
+											{
+												id: 'learner',
+												name: 'Learner',
+												price: '$3',
+												cadence: '/ month',
+												ngnPrice: '≈ ₦4,800 / month',
+												color: '#3B82F6',
+												badge: undefined,
+												features: [
+													'2M DeepSeek-V4-Flash tokens',
+													'Sub-second priority proxy gateway',
+													'Silent free fallback when quota hits',
+													'Zero overdraft billing risk',
+												],
+											},
+											{
+												id: 'starter',
+												name: 'Starter',
+												price: '$8',
+												cadence: '/ month',
+												ngnPrice: '≈ ₦12,800 / month',
+												color: '#3B82F6',
+												badge: 'POPULAR',
+												features: [
+													'8M DeepSeek-V4-Flash tokens',
+													'1.5M Qwen3.6 vision tokens for screenshots',
+													'500K DeepSeek-V4-Pro reasoning tokens',
+													'150K GLM-5.2 frontend tokens',
+													'Isolated .albion-shadow/ testing suite',
+												],
+											},
+											{
+												id: 'pro',
+												name: 'Pro',
+												price: '$12',
+												cadence: '/ month',
+												ngnPrice: '≈ ₦19,200 / month',
+												color: '#F59E0B',
+												badge: undefined,
+												features: [
+													'12M DeepSeek-V4-Flash tokens',
+													'3M Qwen3.6 vision tokens',
+													'1M DeepSeek-V4-Pro reasoning tokens',
+													'250K GLM-5.2 frontend tokens',
+													'Dedicated high-throughput channel',
+												],
+											},
+										] as const).map((tier) => {
+											const isCurrent = (albionUser?.tier ?? 'free').toLowerCase() === tier.id;
+											return (
+												<div
+													key={tier.id}
+													style={{
+														padding: '18px',
+														borderRadius: '10px',
+														backgroundColor: 'var(--surface-control-bg, rgba(255, 255, 255, 0.03))',
+														border: isCurrent ? `2px solid ${tier.color}` : '1px solid var(--void-border, rgba(255, 255, 255, 0.08))',
+														display: 'flex',
+														flexDirection: 'column',
+														justifyContent: 'space-between',
+														position: 'relative',
+													}}
+												>
+													<div>
+														<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+															<div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+																<span style={{ fontSize: '14px', fontWeight: 700, color: tier.color }}>{tier.name}</span>
+																{tier.badge ? (
+																	<span
+																		style={{
+																			fontSize: '9px',
+																			fontWeight: 700,
+																			padding: '1px 6px',
+																			borderRadius: '4px',
+																			backgroundColor: '#F59E0B',
+																			color: '#000000',
+																		}}
+																	>
+																		{tier.badge}
+																	</span>
+																) : null}
+															</div>
+															{isCurrent ? (
+																<span
+																	style={{
+																		fontSize: '10px',
+																		fontWeight: 700,
+																		padding: '2px 8px',
+																		borderRadius: '10px',
+																		backgroundColor: `${tier.color}25`,
+																		color: tier.color,
+																	}}
+																>
+																	CURRENT
+																</span>
+															) : null}
+														</div>
+														<div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '4px' }}>
+															<span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--void-fg-0, #f8fafc)' }}>{tier.price}</span>
+															<span style={{ fontSize: '11px', color: 'var(--void-fg-2, #94a3b8)' }}>{tier.cadence}</span>
+														</div>
+														<div style={{ fontSize: '11px', color: '#10B981', fontWeight: 500, marginBottom: '14px' }}>
+															{tier.ngnPrice}
+														</div>
+														<ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+															{tier.features.map((feat, idx) => (
+																<li key={idx} style={{ fontSize: '12px', color: 'var(--void-fg-1, #cbd5e1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+																	<span style={{ color: tier.color }}>✓</span> {feat}
+																</li>
+															))}
+														</ul>
+													</div>
+													<button
+														type="button"
+														disabled={isCurrent}
+														onClick={() => {
+															openCheckoutModal(tier);
+														}}
+														style={{
+															width: '100%',
+															padding: '8px 12px',
+															borderRadius: '6px',
+															border: isCurrent ? '1px solid var(--void-border, rgba(255, 255, 255, 0.1))' : `1px solid ${tier.color}`,
+															backgroundColor: isCurrent ? 'transparent' : `${tier.color}15`,
+															color: isCurrent ? 'var(--void-fg-2, #94a3b8)' : tier.color,
+															fontSize: '12px',
+															fontWeight: 600,
+															cursor: isCurrent ? 'default' : 'pointer',
+															transition: 'all 0.15s ease',
+														}}
+													>
+														{isCurrent ? 'Current Plan' : `Upgrade to ${tier.name}`}
+													</button>
+												</div>
+											);
+										})}
+									</div>
+								</div>
+
+								{/* Session & Security (Danger Zone) */}
+								<div
+									style={{
+										backgroundColor: 'var(--surface-card-bg, var(--void-bg-1))',
+										border: '1px solid rgba(239, 68, 68, 0.25)',
+										borderRadius: '12px',
+										padding: '20px 24px',
+										boxShadow: 'var(--void-shadow-card, 0 4px 12px rgba(0, 0, 0, 0.05))',
+									}}
+								>
+									<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+										<div>
+											<div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--void-fg-0, #f8fafc)' }}>Active Session</div>
+											<div style={{ fontSize: '12px', color: 'var(--void-fg-2, #94a3b8)', marginTop: '2px' }}>
+												Signing out terminates the authenticated session on this computer and returns to the login prompt.
+											</div>
+										</div>
+										<button
+											type="button"
+											onClick={() => {
+												if (onSignOut) {
+													void onSignOut();
+												}
+											}}
+											style={{
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: '6px',
+												padding: '8px 18px',
+												borderRadius: '7px',
+												border: '1px solid rgba(239, 68, 68, 0.4)',
+												backgroundColor: 'rgba(239, 68, 68, 0.1)',
+												color: '#EF4444',
+												fontSize: '12px',
+												fontWeight: 600,
+												cursor: 'pointer',
+												transition: 'all 0.15s ease',
+											}}
+										>
+											<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+												<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+												<polyline points="16 17 21 12 16 7" />
+												<line x1="21" y1="12" x2="9" y2="12" />
+											</svg>
+											Sign Out of Albion
+										</button>
+									</div>
+								</div>
+							</div>
+						) : null}
 
 						{nav === 'general' ? (
 							<div className="ref-settings-panel">
@@ -1367,7 +1813,190 @@ export function SettingsPage({
 
 						{nav === 'models' ? (
 							<div className="ref-settings-panel ref-settings-panel--models">
-								<p className="ref-settings-models-hint">{t('settings.modelsHint')}</p>
+								{/* Albion AI Cloud Models Section */}
+								<div style={{ marginBottom: '28px' }}>
+									<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+										<div>
+											<h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--void-fg-0, #fff)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+												<span>Albion AI Cloud Models</span>
+												<span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' }}>
+													Native Cluster
+												</span>
+											</h3>
+											<p style={{ fontSize: '12px', color: 'var(--void-fg-2, #94a3b8)', margin: '4px 0 0 0' }}>
+												Production-ready models hosted on Albion's high-speed GPU infrastructure with zero setup required.
+											</p>
+										</div>
+									</div>
+
+									<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '12px' }}>
+										{[
+											{
+												id: '',
+												label: 'Auto (Smart Router)',
+												capabilityBadge: 'Med',
+												tierBadge: 'Free',
+												locked: false,
+												description: 'Best model for your tier · Automatically routes across DeepSeek Flash, Qwen 2.5 & Free pool',
+												lockTooltip: '',
+											},
+											{
+												id: 'deepseek-v4-flash',
+												label: 'DeepSeek V4 Flash',
+												capabilityBadge: 'Fast',
+												tierBadge: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro') ? undefined : 'Locked',
+												locked: !(albionUser?.tier === 'starter' || albionUser?.tier === 'pro'),
+												description: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro')
+													? 'Ultra-fast low-latency code generation'
+													: 'Included in Auto routing. Upgrade to Starter to select directly.',
+												lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
+											},
+											{
+												id: 'qwen3.6-35b-a3b',
+												label: 'Qwen 2.5 Coder 32B',
+												capabilityBadge: 'Fast',
+												tierBadge: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro') ? undefined : 'Locked',
+												locked: !(albionUser?.tier === 'starter' || albionUser?.tier === 'pro'),
+												description: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro')
+													? 'Specialized multilingual coding & tool call synthesis'
+													: 'Included in Auto routing. Upgrade to Starter to select directly.',
+												lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
+											},
+											{
+												id: 'deepseek-v4-pro',
+												label: 'DeepSeek V4 Pro',
+												capabilityBadge: 'Pro',
+												tierBadge: albionUser?.tier === 'pro' ? undefined : 'Locked',
+												locked: albionUser?.tier !== 'pro',
+												description: albionUser?.tier === 'pro'
+													? 'Complex multi-step reasoning & architecture design'
+													: 'Upgrade to Pro to unlock DeepSeek V4 Pro reasoning.',
+												lockTooltip: 'Upgrade to Pro to unlock this model.',
+											},
+											{
+												id: 'glm-5.2',
+												label: 'GLM 5.2',
+												capabilityBadge: 'Pro',
+												tierBadge: albionUser?.tier === 'pro' ? undefined : 'Locked',
+												locked: albionUser?.tier !== 'pro',
+												description: albionUser?.tier === 'pro'
+													? 'High-speed multilingual reasoning & long context'
+													: 'Upgrade to Pro to unlock GLM 5.2 reasoning.',
+												lockTooltip: 'Upgrade to Pro to unlock this model.',
+											},
+										].map((m) => {
+											const isSelected = (!defaultModel && m.id === '') || defaultModel === m.id || (defaultModel === 'auto' && m.id === '');
+											return (
+												<div
+													key={m.id || 'auto'}
+													onClick={() => {
+														if (m.locked) {
+															showTransientToast?.(false, m.lockTooltip || 'Upgrade to unlock this model');
+															return;
+														}
+														onPickDefaultModel(m.id);
+														showTransientToast?.(true, `Selected ${m.label} as active model`);
+													}}
+													style={{
+														padding: '14px',
+														borderRadius: '8px',
+														background: isSelected ? 'var(--surface-control-bg, rgba(255,255,255,0.06))' : 'var(--surface-card-bg, rgba(255,255,255,0.02))',
+														border: isSelected ? '1px solid var(--void-accent, #F59E0B)' : '1px solid var(--void-border, rgba(255,255,255,0.08))',
+														cursor: m.locked ? 'not-allowed' : 'pointer',
+														opacity: m.locked ? 0.72 : 1,
+														transition: 'all 0.15s ease',
+														display: 'flex',
+														flexDirection: 'column',
+														justifyContent: 'space-between',
+														position: 'relative',
+													}}
+													title={m.locked ? m.lockTooltip : 'Click to select as default model'}
+												>
+													<div>
+														<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+															<div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+																<span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--void-fg-0, #fff)' }}>{m.label}</span>
+																<span
+																	style={{
+																		backgroundColor:
+																			m.capabilityBadge === 'Fast'
+																				? 'rgba(6, 182, 212, 0.15)'
+																				: m.capabilityBadge === 'Pro'
+																				? 'rgba(168, 85, 247, 0.15)'
+																				: 'rgba(245, 158, 11, 0.15)',
+																		color:
+																			m.capabilityBadge === 'Fast'
+																				? '#06B6D4'
+																				: m.capabilityBadge === 'Pro'
+																				? '#C084FC'
+																				: '#F59E0B',
+																		fontSize: '10px',
+																		fontWeight: 600,
+																		padding: '1px 5px',
+																		borderRadius: '4px',
+																		textTransform: 'uppercase',
+																	}}
+																>
+																	{m.capabilityBadge}
+																</span>
+																{m.locked || m.tierBadge === 'Locked' ? (
+																	<span
+																		style={{
+																			backgroundColor: 'rgba(234, 179, 8, 0.2)',
+																			color: '#eab308',
+																			fontSize: '10px',
+																			fontWeight: 600,
+																			padding: '1px 5px',
+																			borderRadius: '4px',
+																		}}
+																	>
+																		Locked
+																	</span>
+																) : m.tierBadge === 'Free' ? (
+																	<span
+																		style={{
+																			backgroundColor: 'rgba(16, 185, 129, 0.15)',
+																			color: '#10B981',
+																			fontSize: '10px',
+																			fontWeight: 600,
+																			padding: '1px 5px',
+																			borderRadius: '4px',
+																		}}
+																	>
+																		Free
+																	</span>
+																) : null}
+															</div>
+															{isSelected ? (
+																<span style={{ color: 'var(--void-accent, #F59E0B)', fontSize: '13px', fontWeight: 'bold' }}>✓</span>
+															) : null}
+														</div>
+														<p style={{ margin: 0, fontSize: '11px', color: 'var(--void-fg-2, #94a3b8)', lineHeight: '1.4' }}>
+															{m.description}
+														</p>
+													</div>
+													{m.locked ? (
+														<div style={{ marginTop: '10px', fontSize: '10px', color: '#eab308', display: 'flex', alignItems: 'center', gap: '4px' }}>
+															<span>🔒</span>
+															<span>{m.lockTooltip}</span>
+														</div>
+													) : (
+														<div style={{ marginTop: '10px', fontSize: '11px', color: isSelected ? 'var(--void-accent, #F59E0B)' : 'var(--void-fg-3, #64748b)', fontWeight: 500 }}>
+															{isSelected ? '● Active Model' : 'Click to activate'}
+														</div>
+													)}
+												</div>
+											);
+										})}
+									</div>
+								</div>
+
+								<div style={{ borderTop: '1px solid var(--void-border, rgba(255,255,255,0.08))', paddingTop: '20px', marginBottom: '14px' }}>
+									<h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--void-fg-0, #fff)', margin: '0 0 4px 0' }}>
+										Custom Third-Party Providers & BYOK
+									</h3>
+									<p className="ref-settings-models-hint" style={{ margin: 0 }}>{t('settings.modelsHint')}</p>
+								</div>
 								<p className="ref-settings-models-provider-lead">{t('settings.modelsProviderLead')}</p>
 
 								<div className="ref-settings-models-toolbar">
@@ -1996,6 +2625,220 @@ export function SettingsPage({
 									{t('settings.searchProviderModelsConfirm')}
 								</button>
 							) : null}
+						</div>
+					</div>
+				</div>
+			) : null}
+
+			{/* In-Editor Upgrade Checkout Modal */}
+			{checkoutModal ? (
+				<div
+					style={{
+						position: 'fixed',
+						inset: 0,
+						backgroundColor: 'rgba(0, 0, 0, 0.75)',
+						backdropFilter: 'blur(4px)',
+						zIndex: 10000,
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						padding: '16px',
+					}}
+				>
+					<div
+						style={{
+							width: '100%',
+							maxWidth: '460px',
+							backgroundColor: 'var(--void-bg-1, #0F172A)',
+							border: '1px solid var(--void-border, rgba(255, 255, 255, 0.12))',
+							borderRadius: '14px',
+							padding: '24px',
+							boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+							position: 'relative',
+						}}
+					>
+						{/* Close Button */}
+						<button
+							type="button"
+							onClick={() => setCheckoutModal(null)}
+							style={{
+								position: 'absolute',
+								top: '16px',
+								right: '16px',
+								background: 'transparent',
+								border: 'none',
+								color: 'var(--void-fg-2, #94a3b8)',
+								fontSize: '18px',
+								cursor: 'pointer',
+								padding: '4px 8px',
+								borderRadius: '6px',
+							}}
+							title="Close"
+						>
+							✕
+						</button>
+
+						{/* Header */}
+						<div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+							<div
+								style={{
+									width: '40px',
+									height: '40px',
+									borderRadius: '10px',
+									backgroundColor: 'rgba(59, 130, 246, 0.15)',
+									border: '1px solid rgba(59, 130, 246, 0.3)',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									color: '#3B82F6',
+									fontWeight: 700,
+								}}
+							>
+								A
+							</div>
+							<div>
+								<div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--void-fg-0, #f8fafc)' }}>
+									Upgrade to {checkoutModal.title} Plan
+								</div>
+								<div style={{ fontSize: '12px', color: 'var(--void-fg-2, #94a3b8)' }}>
+									Instant activation · Direct in-editor checkout
+								</div>
+							</div>
+						</div>
+
+						{/* Plan Price Summary */}
+						<div
+							style={{
+								padding: '12px 16px',
+								borderRadius: '8px',
+								backgroundColor: 'var(--surface-control-bg, rgba(255, 255, 255, 0.04))',
+								border: '1px solid var(--void-border, rgba(255, 255, 255, 0.08))',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'space-between',
+								marginBottom: '16px',
+							}}
+						>
+							<span style={{ fontSize: '13px', color: 'var(--void-fg-1, #cbd5e1)' }}>Subscription Total</span>
+							<div style={{ textAlign: 'right' }}>
+								<span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--void-fg-0, #f8fafc)' }}>
+									{checkoutModal.price} <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--void-fg-2, #94a3b8)' }}>/mo</span>
+								</span>
+								<div style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>
+									{checkoutModal.ngnPrice}
+								</div>
+							</div>
+						</div>
+
+						{/* Account Email Field */}
+						<div style={{ marginBottom: '20px' }}>
+							<label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--void-fg-1, #cbd5e1)', marginBottom: '6px' }}>
+								Account Email for Token Binding
+							</label>
+							<input
+								type="email"
+								value={checkoutEmail}
+								onChange={(e) => setCheckoutEmail(e.target.value)}
+								placeholder="developer@example.com"
+								style={{
+									width: '100%',
+									boxSizing: 'border-box',
+									padding: '9px 12px',
+									borderRadius: '7px',
+									backgroundColor: 'var(--void-bg-2, #070C18)',
+									border: '1px solid var(--void-border, rgba(255, 255, 255, 0.15))',
+									color: 'var(--void-fg-0, #f8fafc)',
+									fontSize: '13px',
+									outline: 'none',
+								}}
+							/>
+							<div style={{ fontSize: '11px', color: 'var(--void-fg-2, #94a3b8)', marginTop: '4px' }}>
+								Tokens and elevated quota will automatically bind to this email upon payment.
+							</div>
+						</div>
+
+						{/* Error Banner */}
+						{checkoutError ? (
+							<div
+								style={{
+									padding: '8px 12px',
+									borderRadius: '6px',
+									backgroundColor: 'rgba(239, 68, 68, 0.12)',
+									border: '1px solid rgba(239, 68, 68, 0.3)',
+									color: '#EF4444',
+									fontSize: '12px',
+									marginBottom: '16px',
+								}}
+							>
+								{checkoutError}
+							</div>
+						) : null}
+
+						{/* Payment Option Buttons */}
+						<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+							{/* Paystack Button */}
+							<button
+								type="button"
+								disabled={checkoutLoading}
+								onClick={handlePaystackCheckout}
+								style={{
+									width: '100%',
+									padding: '11px 16px',
+									borderRadius: '8px',
+									backgroundColor: '#0AA5EC',
+									border: 'none',
+									color: '#FFFFFF',
+									fontSize: '13px',
+									fontWeight: 700,
+									cursor: checkoutLoading ? 'default' : 'pointer',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									gap: '8px',
+									transition: 'all 0.15s ease',
+									boxShadow: '0 2px 8px rgba(10, 165, 236, 0.3)',
+								}}
+							>
+								{checkoutLoading ? (
+									'Connecting to Paystack...'
+								) : (
+									<>
+										<span>Pay with Paystack (₦ Naira / Nigerian &amp; African Cards)</span>
+										<span>→</span>
+									</>
+								)}
+							</button>
+
+							{/* Lemon Squeezy Button */}
+							<button
+								type="button"
+								disabled={checkoutLoading}
+								onClick={handleLemonSqueezyCheckout}
+								style={{
+									width: '100%',
+									padding: '11px 16px',
+									borderRadius: '8px',
+									backgroundColor: 'var(--surface-control-bg, rgba(255, 255, 255, 0.08))',
+									border: '1px solid var(--void-border, rgba(255, 255, 255, 0.15))',
+									color: 'var(--void-fg-0, #f8fafc)',
+									fontSize: '13px',
+									fontWeight: 600,
+									cursor: checkoutLoading ? 'default' : 'pointer',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									gap: '8px',
+									transition: 'all 0.15s ease',
+								}}
+							>
+								<span>Pay with Lemon Squeezy (USD / International Cards)</span>
+								<span>→</span>
+							</button>
+						</div>
+
+						{/* Footer Security Note */}
+						<div style={{ marginTop: '16px', textAlign: 'center', fontSize: '11px', color: 'var(--void-fg-2, #94a3b8)' }}>
+							🔒 256-bit SSL encrypted checkout. Webhook automatically provisions your tokens.
 						</div>
 					</div>
 				</div>

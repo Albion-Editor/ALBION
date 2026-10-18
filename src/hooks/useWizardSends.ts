@@ -94,10 +94,7 @@ export function useWizardSends(params: UseWizardSendsParams): UseWizardSendsResu
 			if (!shell) {
 				return;
 			}
-			if (!defaultModel.trim()) {
-				flashComposerAttachErr(t('app.noModelSelected'));
-				return;
-			}
+			const effectiveModel = (defaultModel || 'auto').trim();
 			setComposerModePersist('agent');
 			const { tailSegments, targetThreadId } = pending;
 			const tailWire = segmentsToWireText(tailSegments).trim();
@@ -122,7 +119,7 @@ export function useWizardSends(params: UseWizardSendsParams): UseWizardSendsResu
 				threadId: targetThreadId,
 				text: '',
 				mode: 'agent',
-				modelId: defaultModel,
+				modelId: effectiveModel,
 				streamNonce,
 				...spec.extraPayload,
 			})) as { ok?: boolean; error?: string };

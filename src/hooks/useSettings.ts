@@ -87,7 +87,7 @@ export function useSettings(
 ) {
 	// ── Model state ──
 	const [modelProviders, setModelProviders] = useState<UserLlmProvider[]>([]);
-	const [defaultModel, setDefaultModel] = useState('');
+	const [defaultModel, setDefaultModel] = useState('auto');
 	const [modelEntries, setModelEntries] = useState<UserModelEntry[]>([]);
 	const [enabledModelIds, setEnabledModelIds] = useState<string[]>([]);
 	const [thinkingByModelId, setThinkingByModelId] = useState<Record<string, ThinkingLevel>>({});
@@ -116,7 +116,7 @@ export function useSettings(
 	const [settingsOpenPending, startSettingsOpenTransition] = useTransition();
 
 	// ── Derived ──
-	const hasSelectedModel = useMemo(() => defaultModel.trim().length > 0, [defaultModel]);
+	const hasSelectedModel = true; // Albion always has Auto (Smart Router) ready
 
 	const mergedAgentCustomization = useMemo((): AgentCustomization => {
 		const persistedSkills = [...(agentCustomization.skills ?? []), ...projectAgentSlice.skills];
@@ -172,9 +172,38 @@ export function useSettings(
 		[shell, workspace]
 	);
 
+	// ── Albion tier (fetched from proxy /api/user/caps) ──
+	const [albionTier, setAlbionTier] = useState<'free' | 'learner' | 'starter' | 'pro'>('free');
+	useEffect(() => {
+		let cancelled = false;
+		async function fetchTier() {
+			try {
+				let token = '';
+				if (typeof window !== 'undefined' && window.asyncShell?.invoke) {
+					const auth = (await window.asyncShell.invoke('albion:auth:get')) as
+						| { ok?: boolean; token?: string }
+						| undefined;
+					if (auth?.ok && auth.token) token = auth.token;
+				}
+				const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app';
+				const res = await fetch(`${proxyUrl}/api/user/caps`, {
+					headers: token ? { Authorization: `Bearer ${token}` } : {},
+				});
+				if (!res.ok || cancelled) return;
+				const data = (await res.json()) as { tier?: string };
+				const t = (data?.tier ?? 'free').toLowerCase();
+				if (!cancelled) {
+					setAlbionTier(t === 'pro' ? 'pro' : t === 'starter' ? 'starter' : t === 'learner' ? 'learner' : 'free');
+				}
+			} catch { /* ignore */ }
+		}
+		void fetchTier();
+		return () => { cancelled = true; };
+	}, []);
+
 	const modelPickerItems = useMemo((): ModelPickerItem[] => {
 		const enabledSet = new Set(enabledModelIds);
-		return modelEntries
+		const userItems = modelEntries
 			.filter((e) => enabledSet.has(e.id) && (e.displayName.trim() || e.requestName.trim()))
 			.map((e) => {
 				const paradigm = paradigmForModelEntry(e, modelProviders);
@@ -187,15 +216,94 @@ export function useSettings(
 					providerLabel: provLabel,
 				};
 			});
-	}, [enabledModelIds, modelEntries, modelProviders, t]);
+
+		// Auto (Smart Router) — always available for all tiers
+		const autoItem: ModelPickerItem = {
+			id: '',
+			label: 'Auto (Smart Router)',
+			capabilityBadge: 'Med',
+			tierBadge: 'Free',
+			description: 'Best model for your tier · Automatically routes across DeepSeek Flash, Qwen 2.5 & Free pool',
+			providerLabel: 'Albion AI',
+		};
+
+		// Flash & Coder models — routed automatically in Free tier, selectable in Starter/Pro
+		const isStarterOrPro = albionTier === 'starter' || albionTier === 'pro';
+		const isPro = albionTier === 'pro';
+
+		const nativeModels: ModelPickerItem[] = [
+			{
+				id: 'deepseek-v4-flash',
+				label: 'DeepSeek V4 Flash',
+				capabilityBadge: 'Fast',
+				tierBadge: isStarterOrPro ? undefined : 'Locked',
+				description: isStarterOrPro
+					? 'Ultra-fast low-latency code generation'
+					: 'Routed automatically in Free tier. Upgrade to Starter to select directly.',
+				providerLabel: 'Albion AI',
+				locked: !isStarterOrPro,
+				lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
+			},
+			{
+				id: 'qwen3.6-35b-a3b',
+				label: 'Qwen 2.5 Coder 32B',
+				capabilityBadge: 'Fast',
+				tierBadge: isStarterOrPro ? undefined : 'Locked',
+				description: isStarterOrPro
+					? 'Specialized multilingual coding & tool call synthesis'
+					: 'Routed automatically in Free tier. Upgrade to Starter to select directly.',
+				providerLabel: 'Albion AI',
+				locked: !isStarterOrPro,
+				lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
+			},
+			{
+				id: 'deepseek-v4-pro',
+				label: 'DeepSeek V4 Pro',
+				capabilityBadge: 'Pro',
+				tierBadge: isPro ? undefined : 'Locked',
+				description: isPro
+					? 'Complex multi-step reasoning & architecture design'
+					: 'Upgrade to Pro to unlock DeepSeek V4 Pro reasoning.',
+				providerLabel: 'Albion AI',
+				locked: !isPro,
+				lockTooltip: 'Upgrade to Pro to unlock this model.',
+			},
+			{
+				id: 'glm-5.2',
+				label: 'GLM 5.2',
+				capabilityBadge: 'Pro',
+				tierBadge: isPro ? undefined : 'Locked',
+				description: isPro
+					? 'High-speed multilingual reasoning & long context'
+					: 'Upgrade to Pro to unlock GLM 5.2 reasoning.',
+				providerLabel: 'Albion AI',
+				locked: !isPro,
+				lockTooltip: 'Upgrade to Pro to unlock this model.',
+			},
+		];
+
+		return [autoItem, ...nativeModels, ...userItems];
+	}, [enabledModelIds, modelEntries, modelProviders, t, albionTier]);
 
 	const modelPillLabel = useMemo(() => {
-		if (!defaultModel.trim()) {
-			return t('modelPicker.selectModel');
+		if (!defaultModel.trim() || defaultModel === 'auto' || defaultModel === 'albion.model.auto') {
+			return 'Auto (Smart Router)';
+		}
+		if (defaultModel === 'deepseek-v4-flash') {
+			return 'DeepSeek V4 Flash';
+		}
+		if (defaultModel === 'qwen3.6-35b-a3b' || defaultModel === 'qwen-2.5-coder') {
+			return 'Qwen 2.5 Coder';
+		}
+		if (defaultModel === 'deepseek-v4-pro') {
+			return 'DeepSeek V4 Pro';
+		}
+		if (defaultModel === 'glm-5.2') {
+			return 'GLM 5.2';
 		}
 		const e = modelEntries.find((x) => x.id === defaultModel);
 		return e ? e.displayName.trim() || e.requestName || defaultModel : defaultModel;
-	}, [defaultModel, modelEntries, t]);
+	}, [defaultModel, modelEntries]);
 
 	// ── Callbacks ──
 	const openSettingsPage = useCallback((nav: SettingsNavId) => {
@@ -209,7 +317,11 @@ export function useSettings(
 		async (id: string) => {
 			setDefaultModel(id);
 			if (shell) {
+				// Save to settings
 				await shell.invoke('settings:set', { defaultModel: id });
+				// Tell the proxy which model to force ('' or 'auto' = clear override, use Auto routing)
+				const forceId = id === '' || id === 'auto' ? null : id;
+				await shell.invoke('albion:model:force', forceId);
 			}
 		},
 		[shell]

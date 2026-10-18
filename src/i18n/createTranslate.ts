@@ -21,12 +21,12 @@ export function createTranslate(locale: AppLocale): TFunction {
 	};
 }
 
-/** 无 Context 时的回退（与默认语言一致） */
-export const defaultT = createTranslate('zh-CN');
+/** Fallback without Context (matches default language) */
+export const defaultT = createTranslate('en');
 
 export function normalizeLocale(raw: unknown): AppLocale {
-	if (raw === 'en') {
-		return 'en';
+	if (raw === 'zh-CN') {
+		return 'zh-CN';
 	}
-	return 'zh-CN';
+	return 'en';
 }

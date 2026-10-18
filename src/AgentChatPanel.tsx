@@ -2,6 +2,7 @@ import {
 	isValidElement,
 	memo,
 	useCallback,
+	useContext,
 	useDeferredValue,
 	useEffect,
 	useLayoutEffect,
@@ -67,7 +68,8 @@ import type { TFunction } from './i18n';
 import { isChatAssistantErrorLine } from './i18n';
 import { type AgentPendingPatch, type TurnTokenUsage } from './ipcTypes';
 import { extractTodosFromLiveBlocks } from './liveAgentBlocks';
-import { IconArrowDown, IconChevron, IconDoc } from './icons';
+import { IconArrowDown, IconChevron, IconDoc, IconCopy, IconPencil, IconCheckCircle, IconRefresh } from './icons';
+import { ComposerActionsContext } from './ComposerActionsContext';
 import { type ParsedPlan, type PlanQuestion } from './planParser';
 import { type ChatMessage } from './threadTypes';
 import type { TeamSessionState } from './hooks/useTeamSession';
@@ -83,6 +85,127 @@ type SharedComposerProps = Omit<
 	ComponentProps<typeof ChatComposer>,
 	'slot' | 'variant' | 'segments' | 'setSegments' | 'canSend' | 'extraClass' | 'showGitBranchRow'
 >;
+
+function cleanCopyText(raw: string): string {
+	return raw
+		.replace(/<\|tool_call_start\|>[\s\S]*?<\|tool_call_end\|>/g, '')
+		.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+		.trim();
+}
+
+function UserMessageActions({
+	content,
+	disabled,
+	onEdit,
+}: {
+	content: string;
+	disabled: boolean;
+	onEdit: () => void;
+}) {
+	const [copied, setCopied] = useState(false);
+
+	const handleCopy = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation();
+			const text = cleanCopyText(content);
+			if (window.asyncShell?.invoke) {
+				void window.asyncShell.invoke('clipboard:writeText', text);
+			} else if (navigator.clipboard?.writeText) {
+				void navigator.clipboard.writeText(text);
+			}
+			setCopied(true);
+			window.setTimeout(() => setCopied(false), 2000);
+		},
+		[content]
+	);
+
+	return (
+		<div className="ref-msg-actions-toolbar ref-msg-actions-toolbar--user">
+			<button
+				type="button"
+				className="ref-msg-action-btn"
+				disabled={disabled}
+				title="Edit & Resend"
+				aria-label="Edit & Resend"
+				onClick={(e) => {
+					e.stopPropagation();
+					if (!disabled) onEdit();
+				}}
+			>
+				<IconPencil className="ref-msg-action-icon" />
+				<span className="ref-msg-action-text">Edit</span>
+			</button>
+			<button
+				type="button"
+				className={`ref-msg-action-btn ${copied ? 'is-copied' : ''}`}
+				title={copied ? 'Copied' : 'Copy prompt'}
+				aria-label={copied ? 'Copied' : 'Copy prompt'}
+				onClick={handleCopy}
+			>
+				{copied ? <IconCheckCircle className="ref-msg-action-icon" /> : <IconCopy className="ref-msg-action-icon" />}
+				<span className="ref-msg-action-text">{copied ? 'Copied' : 'Copy'}</span>
+			</button>
+		</div>
+	);
+}
+
+function AssistantMessageActions({
+	content,
+	disabled,
+	onRetry,
+}: {
+	content: string;
+	disabled?: boolean;
+	onRetry?: () => void;
+}) {
+	const [copied, setCopied] = useState(false);
+
+	const handleCopy = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation();
+			const text = cleanCopyText(content);
+			if (window.asyncShell?.invoke) {
+				void window.asyncShell.invoke('clipboard:writeText', text);
+			} else if (navigator.clipboard?.writeText) {
+				void navigator.clipboard.writeText(text);
+			}
+			setCopied(true);
+			window.setTimeout(() => setCopied(false), 2000);
+		},
+		[content]
+	);
+
+	return (
+		<div className="ref-msg-actions-toolbar ref-msg-actions-toolbar--assistant">
+			{onRetry ? (
+				<button
+					type="button"
+					className="ref-msg-action-btn"
+					disabled={disabled}
+					title="Retry response"
+					aria-label="Retry response"
+					onClick={(e) => {
+						e.stopPropagation();
+						if (!disabled) onRetry();
+					}}
+				>
+					<IconRefresh className="ref-msg-action-icon" />
+					<span className="ref-msg-action-text">Retry</span>
+				</button>
+			) : null}
+			<button
+				type="button"
+				className={`ref-msg-action-btn ${copied ? 'is-copied' : ''}`}
+				title={copied ? 'Copied response' : 'Copy response'}
+				aria-label={copied ? 'Copied response' : 'Copy response'}
+				onClick={handleCopy}
+			>
+				{copied ? <IconCheckCircle className="ref-msg-action-icon" /> : <IconCopy className="ref-msg-action-icon" />}
+				<span className="ref-msg-action-text">{copied ? 'Copied!' : 'Copy'}</span>
+			</button>
+		</div>
+	);
+}
 
 export type AgentChatPanelProps = {
 	layout?: 'agent-center' | 'editor-rail';
@@ -353,6 +476,7 @@ export const AgentChatPanel = memo(function AgentChatPanel({
 	onTeamPlanReject,
 	onChatPanelDropFiles,
 }: AgentChatPanelProps) {
+	const composerActions = useContext(ComposerActionsContext);
 	const streamingToolPreview = useStreamingToolPreview();
 	const liveAssistantBlocks = useLiveAssistantBlocks();
 	const streaming = useStreaming();
@@ -1370,20 +1494,27 @@ export const AgentChatPanel = memo(function AgentChatPanel({
 
 				return (
 					<div className="ref-msg-slot ref-msg-slot--user">
-						<button
-							type="button"
-							className="ref-msg-user"
-							disabled={awaitingReply}
-							title={awaitingReply ? t('app.userMsgGenerating') : t('app.userMsgEditHint')}
-							onClick={() => {
-								if (awaitingReply) {
-									return;
-								}
-								onStartInlineResend(userMessageIndex, m.content, m.parts);
-							}}
-						>
-							<UserMessageRich segments={userSegs} onFileClick={onOpenWorkspaceFile} />
-						</button>
+						<div className="ref-msg-user-wrapper">
+							<button
+								type="button"
+								className="ref-msg-user"
+								disabled={awaitingReply}
+								title={awaitingReply ? t('app.userMsgGenerating') : t('app.userMsgEditHint')}
+								onClick={() => {
+									if (awaitingReply) {
+										return;
+									}
+									onStartInlineResend(userMessageIndex, m.content, m.parts);
+								}}
+							>
+								<UserMessageRich segments={userSegs} onFileClick={onOpenWorkspaceFile} />
+							</button>
+							<UserMessageActions
+								content={m.content}
+								disabled={awaitingReply}
+								onEdit={() => onStartInlineResend(userMessageIndex, m.content, m.parts)}
+							/>
+						</div>
 					</div>
 				);
 			}
@@ -1423,37 +1554,63 @@ export const AgentChatPanel = memo(function AgentChatPanel({
 								) : null}
 							</>
 						) : (
-							<ChatMarkdown
-								content={m.content}
-								agentUi={
-									composerMode === 'plan' ||
-									composerMode === 'agent' ||
-									assistantMessageUsesAgentToolProtocol(m.content)
-								}
-								assistantBubbleVariant={
-									m.role === 'assistant' && isChatAssistantErrorLine(m.content, t)
-										? 'error'
-										: 'default'
-								}
-								planUi={composerMode === 'plan'}
-								workspaceRoot={workspace}
-								onOpenAgentFile={onOpenAgentConversationFile}
-								onRunCommand={onRunCommand}
-								streamingToolPreview={agentOrPlanStreaming ? streamingToolPreview : null}
-								showAgentWorking={agentOrPlanStreaming}
-								hidePendingActivityTextCluster
-								liveAgentBlocksState={agentOrPlanStreaming ? liveAssistantBlocks : null}
-								liveThoughtMeta={agentOrPlanStreaming ? liveThoughtMeta : null}
-								revertedPaths={revertedFiles}
-								revertedChangeKeys={revertedChangeKeys}
-								allowAgentFileActions={
-									composerMode === 'agent' && !awaitingReply && i === lastAssistantMessageIndex
-								}
-								skipPlanTodo
-								renderMode={chatRenderMode}
-								typewriter={isLast && awaitingReply}
-								turnFocusFillPx={assistantTurnFocusFillPx}
-							/>
+							<>
+								<ChatMarkdown
+									content={m.content}
+									agentUi={
+										composerMode === 'plan' ||
+										composerMode === 'agent' ||
+										assistantMessageUsesAgentToolProtocol(m.content)
+									}
+									assistantBubbleVariant={
+										m.role === 'assistant' && isChatAssistantErrorLine(m.content, t)
+											? 'error'
+											: 'default'
+									}
+									planUi={composerMode === 'plan'}
+									workspaceRoot={workspace}
+									onOpenAgentFile={onOpenAgentConversationFile}
+									onRunCommand={onRunCommand}
+									streamingToolPreview={agentOrPlanStreaming ? streamingToolPreview : null}
+									showAgentWorking={agentOrPlanStreaming}
+									hidePendingActivityTextCluster
+									liveAgentBlocksState={agentOrPlanStreaming ? liveAssistantBlocks : null}
+									liveThoughtMeta={agentOrPlanStreaming ? liveThoughtMeta : null}
+									revertedPaths={revertedFiles}
+									revertedChangeKeys={revertedChangeKeys}
+									allowAgentFileActions={
+										composerMode === 'agent' && !awaitingReply && i === lastAssistantMessageIndex
+									}
+									skipPlanTodo
+									renderMode={chatRenderMode}
+									typewriter={isLast && awaitingReply}
+									turnFocusFillPx={assistantTurnFocusFillPx}
+								/>
+								{!awaitingReply && m.content ? (
+									<AssistantMessageActions
+										content={m.content}
+										disabled={awaitingReply}
+										onRetry={() => {
+											let prevUserIdx = -1;
+											for (let u = i - 1; u >= 0; u--) {
+												if (displayMessages[u]?.role === 'user') {
+													prevUserIdx = u;
+													break;
+												}
+											}
+											if (prevUserIdx >= 0) {
+												const prevUser = displayMessages[prevUserIdx];
+												if (prevUser && onStartInlineResend) {
+													onStartInlineResend(prevUserIdx, prevUser.content, prevUser.parts);
+													window.setTimeout(() => {
+														composerActions?.onSend?.();
+													}, 60);
+												}
+											}
+										}}
+									/>
+								) : null}
+							</>
 						)}
 					</div>
 				</div>

@@ -378,7 +378,7 @@ describe('extractBotReplyText', () => {
 				},
 			],
 		});
-		expect(extractBotReplyText(outerRaw)).toBe('已读取当前 Async 会话信息。');
+		expect(extractBotReplyText(outerRaw)).toBe('已读取当前 Albion 会话信息。');
 	});
 
 	it('returns raw input for invalid structured message', () => {

@@ -31,4 +31,13 @@ describe('legacyToolCallFromText', () => {
 		expect(f.toolCalls).toHaveLength(1);
 		expect(f.toolCalls[0]!.name).toBe('Read');
 	});
+
+	it('extracts Hermes/Liquid tool calls and converts kwargs to JSON', () => {
+		const raw = "Sure thing!\n<|tool_call_start|>[Write(file_path='testing01', content='')]<|tool_call_end|>\nDone!";
+		const { text, toolCalls } = extractLegacyToolCallsFromAssistantText(raw, 'tc_');
+		expect(text).toBe('Sure thing!\n\nDone!');
+		expect(toolCalls).toHaveLength(1);
+		expect(toolCalls[0]!.name).toBe('Write');
+		expect(JSON.parse(toolCalls[0]!.arguments)).toEqual({ file_path: 'testing01', content: '' });
+	});
 });

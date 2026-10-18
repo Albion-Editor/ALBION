@@ -1,4 +1,4 @@
-﻿/// <reference types="vite/client" />
+/// <reference types="vite/client" />
 import type * as React from 'react';
 
 export interface AsyncShellAPI {
@@ -9,6 +9,7 @@ export interface AsyncShellAPI {
 	/** 缁愭褰涚粔璇插З / 缂傗晜鏂侀弮鎯靶曢崣鎴礉閻劋绨柌宥囩暬 fixed 濞搭喖鐪伴柨姘卞仯 */
 	subscribeLayout?(callback: () => void): () => void;
 	subscribeThemeMode?(callback: (payload: unknown) => void): () => void;
+	subscribeAuthState?(callback: (payload: { isAuthenticated: boolean; user: { id: string; email?: string } | null }) => void): () => void;
 	/** 瀹搞儰缍旈崠铏规窗瑜版洖鍞撮弬鍥︽閸︺劎顥嗛惄妯圭瑐婢х偛鍨归弨鐧哥礄婢舵牠鍎寸紓鏍帆閸ｃ劋绻氱€涙鐡戦敍澶涚礉娑撴槒绻樼粙瀣病 chokidar 闂冨弶濮堥崥搴＄畭閹?*/
 	subscribeWorkspaceFsTouched?(callback: () => void): () => void;
 	/** 瀹搞儰缍旈崠鐑樻瀮娴犲墎鍌ㄥ鏇㈩浕濞嗏€冲弿闁插繑澹傞幓蹇撶暚閹存劧绱欐稉搴＄秼閸撳秶鐛ラ崣?root 濮ｆ柨顕悽杈吂闂冨懏鏌熺€瑰本鍨氶敍?*/

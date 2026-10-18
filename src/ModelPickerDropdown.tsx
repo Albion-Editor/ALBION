@@ -12,6 +12,10 @@ export type ModelPickerItem = {
 	subtitle?: string;
 	/** 弱化展示：模型所属提供商名称 */
 	providerLabel?: string;
+	locked?: boolean;
+	lockTooltip?: string;
+	capabilityBadge?: 'Med' | 'Fast' | 'Pro' | string;
+	tierBadge?: 'Free' | 'Locked' | string;
 };
 
 const OPTIONS_PANEL_W = 276;
@@ -80,6 +84,7 @@ export function ModelPickerDropdown({
 	const [optsOpen, setOptsOpen] = useState(false);
 	const [optsModelId, setOptsModelId] = useState<string | null>(null);
 	const [rendered, setRendered] = useState(open);
+	const [lockedTooltip, setLockedTooltip] = useState<{ id: string; text: string } | null>(null);
 
 	const panelModelId = optsOpen ? (optsModelId ?? selectedId) : selectedId;
 	const thinkingLevel = getThinkingLevel(panelModelId);
@@ -238,10 +243,19 @@ export function ModelPickerDropdown({
 									key={m.id}
 									role="option"
 									aria-selected={isSel}
-									tabIndex={0}
-									className={`ref-model-dd-row ${isSel ? 'is-selected' : ''}`}
+									tabIndex={m.locked ? -1 : 0}
+									className={`ref-model-dd-row ${isSel ? 'is-selected' : ''} ${m.locked ? 'is-locked' : ''}`}
+									style={m.locked ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+									title={m.locked ? (m.lockTooltip || 'Upgrade to unlock specific model selection.') : undefined}
 									onMouseEnter={() => setHoveredId(m.id)}
 									onKeyDown={(e) => {
+										if (m.locked) {
+											if (e.key === 'Enter' || e.key === ' ') {
+												e.preventDefault();
+												setLockedTooltip({ id: m.id, text: m.lockTooltip || 'Upgrade to unlock specific model selection.' });
+											}
+											return;
+										}
 										if (e.key === 'Enter' || e.key === ' ') {
 											e.preventDefault();
 											void onSelectModel(m.id);
@@ -249,6 +263,10 @@ export function ModelPickerDropdown({
 										}
 									}}
 									onClick={() => {
+										if (m.locked) {
+											setLockedTooltip({ id: m.id, text: m.lockTooltip || 'Upgrade to unlock specific model selection.' });
+											return;
+										}
 										void onSelectModel(m.id);
 										onClose();
 									}}
@@ -257,14 +275,70 @@ export function ModelPickerDropdown({
 										<IconGlobe />
 									</span>
 									<span className="ref-model-dd-main">
-										<span className="ref-model-dd-title-row">
+										<span className="ref-model-dd-title-row" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
 											<span className="ref-model-dd-label" title={m.label}>{m.label}</span>
-											<span
-												className={`ref-model-dd-tag ref-model-dd-tag--think ref-model-dd-tag--think-${rowThink}`}
-												title={t('thinking.badgeTitle')}
-											>
-												{t(`thinking.badge.${rowThink}`)}
-											</span>
+											{m.capabilityBadge ? (
+												<span
+													className="ref-model-dd-tag"
+													style={{
+														backgroundColor:
+															m.capabilityBadge === 'Fast'
+																? 'rgba(6, 182, 212, 0.15)'
+																: m.capabilityBadge === 'Pro'
+																? 'rgba(168, 85, 247, 0.15)'
+																: 'rgba(245, 158, 11, 0.15)',
+														color:
+															m.capabilityBadge === 'Fast'
+																? '#06B6D4'
+																: m.capabilityBadge === 'Pro'
+																? '#C084FC'
+																: '#F59E0B',
+														fontSize: '10px',
+														fontWeight: 600,
+														padding: '1px 5px',
+														borderRadius: '4px',
+													}}
+												>
+													{m.capabilityBadge}
+												</span>
+											) : (
+												<span
+													className={`ref-model-dd-tag ref-model-dd-tag--think ref-model-dd-tag--think-${rowThink}`}
+													title={t('thinking.badgeTitle')}
+												>
+													{t(`thinking.badge.${rowThink}`)}
+												</span>
+											)}
+											{m.locked || m.tierBadge === 'Locked' ? (
+												<span
+													className="ref-model-dd-tag"
+													style={{
+														backgroundColor: 'rgba(234, 179, 8, 0.2)',
+														color: '#eab308',
+														fontSize: '10px',
+														fontWeight: 600,
+														padding: '1px 5px',
+														borderRadius: '4px',
+													}}
+													title={m.lockTooltip || 'Upgrade to unlock'}
+												>
+													Locked
+												</span>
+											) : m.tierBadge === 'Free' ? (
+												<span
+													className="ref-model-dd-tag"
+													style={{
+														backgroundColor: 'rgba(16, 185, 129, 0.15)',
+														color: '#10B981',
+														fontSize: '10px',
+														fontWeight: 600,
+														padding: '1px 5px',
+														borderRadius: '4px',
+													}}
+												>
+													Free
+												</span>
+											) : null}
 										</span>
 										{m.providerLabel ? (
 											<span className="ref-model-dd-provider-meta" title={m.providerLabel}>
@@ -296,6 +370,26 @@ export function ModelPickerDropdown({
 							);
 						})}
 					</div>
+					{lockedTooltip ? (
+						<div
+							style={{
+								margin: '6px 12px 2px 12px',
+								padding: '6px 10px',
+								borderRadius: '6px',
+								backgroundColor: 'rgba(245, 158, 11, 0.12)',
+								border: '1px solid rgba(245, 158, 11, 0.3)',
+								color: '#F59E0B',
+								fontSize: '11px',
+								lineHeight: '1.4',
+								display: 'flex',
+								alignItems: 'center',
+								gap: '6px',
+							}}
+						>
+							<span style={{ fontSize: '13px' }}>🔒</span>
+							<span>{lockedTooltip.text}</span>
+						</div>
+					) : null}
 					<div className="ref-model-dd-sep" role="separator" />
 					<button type="button" className="ref-model-dd-add" onClick={() => { onAddModels(); onClose(); }}>
 						{t('modelPicker.addModels')}

@@ -75,7 +75,7 @@ export class AppErrorBoundary extends Component<Props, State> {
 		return (
 			<div className="ref-app-error-boundary" role="alert">
 				<div className="ref-app-error-boundary-card">
-					<h1 className="ref-app-error-boundary-title">Async ran into a problem</h1>
+					<h1 className="ref-app-error-boundary-title">Albion ran into a problem</h1>
 					<p className="ref-app-error-boundary-msg">
 						The window failed to initialize. This is often caused by a corrupted file under your workspace's
 						<code>.async/</code> folder (for example <code>.async/agent.json</code>). Try reloading first; if it still

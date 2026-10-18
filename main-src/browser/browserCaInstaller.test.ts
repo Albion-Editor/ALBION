@@ -85,8 +85,8 @@ describe('CaInstaller on Windows', () => {
 			throw new Error('missing file');
 		});
 		mocks.exec.mockImplementation((cmd: string, _options: unknown, cb: ExecCallback) => {
-			if (cmd === 'certutil -user -store Root "Async IDE Local Capture Root"') {
-				cb(null, 'Subject: CN=Async IDE Local Capture Root', '');
+			if (cmd === 'certutil -user -store Root "Albion IDE Local Capture Root"') {
+				cb(null, 'Subject: CN=Albion IDE Local Capture Root', '');
 				return {};
 			}
 			cb(notFoundError(), '', 'not found');
@@ -97,7 +97,7 @@ describe('CaInstaller on Windows', () => {
 
 		expect(installed).toBe(true);
 		expect(mocks.exec.mock.calls.map(([cmd]) => cmd)).toEqual([
-			'certutil -user -store Root "Async IDE Local Capture Root"',
+			'certutil -user -store Root "Albion IDE Local Capture Root"',
 		]);
 	});
 

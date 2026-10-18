@@ -151,6 +151,22 @@ function resolveProviderCredentials(
 	return { ok: true, apiKey: key, baseURL: undefined, ...(oauthAuth ? { oauthAuth } : {}) };
 }
 
+export const ALBION_NATIVE_MODEL_IDS = new Set([
+	'',
+	'auto',
+	'albion.model.auto',
+	'deepseek-v4-flash',
+	'qwen3.6-35b-a3b',
+	'qwen-2.5-coder',
+	'deepseek-v4-pro',
+	'glm-5.2',
+]);
+
+export function isAlbionNativeModel(id: string): boolean {
+	const sid = (id || '').trim().toLowerCase();
+	return ALBION_NATIVE_MODEL_IDS.has(sid);
+}
+
 /**
  * 解析当前选择对应的模型 id、范式、输出上限与有效密钥（含按提供商的连接信息）。
  * @param selectionId 用户模型条目的 id（须非空）
@@ -162,11 +178,18 @@ export function resolveModelRequest(settings: ShellSettings, selectionId: string
 	const enabledSet = new Set(enabledIds);
 
 	const sid = selectionId.trim().toLowerCase();
-	if (!sid || sid === 'auto') {
+	if (isAlbionNativeModel(sid)) {
+		const targetModel = (!sid || sid === 'auto' || sid === 'albion.model.auto') ? 'auto' : sid;
 		return {
-			ok: false,
-			message:
-				'未选择模型。请在输入区选择模型，或在设置 → 模型中添加提供商与模型并选择默认模型。',
+			ok: true,
+			entryId: targetModel,
+			requestModelId: targetModel,
+			paradigm: 'openai-compatible',
+			maxOutputTokens: 4096,
+			temperatureMode: 'auto',
+			apiKey: 'albion-token',
+			baseURL: `${process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app'}/v1`,
+			providerId: 'albion-cloud',
 		};
 	}
 

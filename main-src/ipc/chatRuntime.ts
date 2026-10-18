@@ -32,6 +32,7 @@ import { formatLlmSdkError } from '../llm/formatLlmSdkError.js';
 import { modeExpandsWorkspaceFileContext } from '../llm/workspaceContextExpand.js';
 import { resolveMessagesForSend } from '../llm/sendResolved.js';
 import { listAgentDiffChunks } from '../agent/applyAgentDiffs.js';
+import { getVerification } from '../agent/trustEngine.js';
 import { countLineChangesBetweenTexts } from '../diffLineCount.js';
 import { recordAgentLineDelta, recordTokenUsageEvent } from '../workspaceUsageStats.js';
 import { runAgentLoop, type AgentLoopOptions } from '../agent/agentLoop.js';
@@ -171,10 +172,7 @@ export function resolveManagedAgentLoopOptions(
 	workspaceLspManager: ReturnType<typeof getWorkspaceLspManagerForWebContents>,
 	hostWebContentsId: number | null
 ): Omit<AgentLoopOptions, 'signal'> | null {
-	const modelSelection = String(settings.defaultModel ?? '').trim();
-	if (!modelSelection) {
-		return null;
-	}
+	const modelSelection = String(settings.defaultModel ?? '').trim() || 'auto';
 	const resolved = resolveModelRequest(settings, modelSelection);
 	if (!resolved.ok) {
 		return null;
@@ -598,6 +596,7 @@ export function runChatStream(
 										id: `p-${i}`,
 										relPath: p.relPath,
 										chunk: p.chunk,
+										verification: p.relPath ? getVerification(p.relPath) : undefined,
 									})),
 								});
 								return;

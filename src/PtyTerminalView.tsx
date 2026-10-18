@@ -4,6 +4,9 @@ import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import '@xterm/xterm/css/xterm.css';
 import { useI18n } from './i18n';
+import { useDomTheme, readDomThemePreset } from './useDomColorScheme';
+import { readDomColorScheme } from './colorMode';
+import type { ThemePresetId } from './appearanceSettings';
 import { dispatchTerminalHotkey } from './terminalWindow/terminalHotkeyDispatch';
 import { installXtermHotkeyRouting } from './terminalWindow/terminalHotkeyXtermInstall';
 import { showTerminalCopiedNotice } from './terminalWindow/terminalNoticeToast';
@@ -22,9 +25,24 @@ type XTermThemeColors = {
 	background: string;
 	foreground: string;
 	cursor: string;
+	cursorAccent?: string;
 	selectionBackground: string;
 	black: string;
 	brightBlack: string;
+	red?: string;
+	brightRed?: string;
+	green?: string;
+	brightGreen?: string;
+	yellow?: string;
+	brightYellow?: string;
+	blue?: string;
+	brightBlue?: string;
+	magenta?: string;
+	brightMagenta?: string;
+	cyan?: string;
+	brightCyan?: string;
+	white?: string;
+	brightWhite?: string;
 };
 
 export type PtyTerminalViewProps = {
@@ -51,8 +69,11 @@ export function PtyTerminalView({ sessionId, active, compactChrome, onSessionExi
 	const zoomLevelRef = useRef(0);
 	const searchAddonRef = useRef<SearchAddon | null>(null);
 	const findInputRef = useRef<HTMLInputElement | null>(null);
+	const { scheme, preset, themeBg } = useDomTheme();
 	const [settings, setSettings] = useState<TerminalAppSettings>(() => loadTerminalSettings());
-	const [themeColors, setThemeColors] = useState<XTermThemeColors>(() => readPtyThemeColors());
+	const [themeColors, setThemeColors] = useState<XTermThemeColors>(() =>
+		resolveThemeColors(readDomThemePreset(), readDomColorScheme())
+	);
 	const [searchUi, setSearchUi] = useState<{ open: boolean; query: string }>({ open: false, query: '' });
 	activeRef.current = active;
 	onExitRef.current = onSessionExit;
@@ -65,12 +86,46 @@ export function PtyTerminalView({ sessionId, active, compactChrome, onSessionExi
 	}, []);
 
 	useEffect(() => {
-		const observer = new MutationObserver(() => {
-			setThemeColors(readPtyThemeColors());
-		});
-		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-scheme'] });
-		return () => observer.disconnect();
-	}, []);
+		const nextColors = resolveThemeColors(preset, scheme);
+		setThemeColors(nextColors);
+
+		// Synchronize CSS custom properties globally for all terminal wrappers, tabs, and viewports
+		if (typeof document !== 'undefined' && document.documentElement) {
+			document.documentElement.style.setProperty('--terminal-bg', nextColors.background);
+			document.documentElement.style.setProperty('--terminal-fg', nextColors.foreground);
+			document.documentElement.style.setProperty('--terminal-accent', nextColors.cursor);
+		}
+
+		const term = termRef.current;
+		if (term) {
+			term.options.theme = {
+				...nextColors,
+			};
+			if (typeof (term as unknown as { setOption: (key: string, val: unknown) => void }).setOption === 'function') {
+				try {
+					(term as unknown as { setOption: (key: string, val: unknown) => void }).setOption('theme', nextColors);
+				} catch {
+					/* ignore */
+				}
+			}
+			if (containerRef.current) {
+				containerRef.current.style.backgroundColor = nextColors.background;
+				const innerVp = containerRef.current.querySelector('.xterm-viewport') as HTMLElement | null;
+				if (innerVp) {
+					innerVp.style.backgroundColor = nextColors.background;
+				}
+				const xtermScreen = containerRef.current.querySelector('.xterm-screen') as HTMLElement | null;
+				if (xtermScreen) {
+					xtermScreen.style.backgroundColor = nextColors.background;
+				}
+			}
+			try {
+				term.refresh(0, term.rows - 1);
+			} catch {
+				/* ignore */
+			}
+		}
+	}, [scheme, preset, themeBg]);
 
 	useEffect(() => {
 		const shell = window.asyncShell;
@@ -81,13 +136,7 @@ export function PtyTerminalView({ sessionId, active, compactChrome, onSessionExi
 		const current = settingsRef.current;
 		const term = new XTerm({
 			theme: {
-				background: themeColors.background,
-				foreground: themeColors.foreground,
-				cursor: themeColors.cursor,
-				cursorAccent: themeColors.background,
-				selectionBackground: themeColors.selectionBackground,
-				black: themeColors.black,
-				brightBlack: themeColors.brightBlack,
+				...themeColors,
 			},
 			fontSize: current.fontSize,
 			fontFamily: current.fontFamily,
@@ -331,7 +380,7 @@ export function PtyTerminalView({ sessionId, active, compactChrome, onSessionExi
 			termRef.current = null;
 			fitRef.current = null;
 		};
-	}, [sessionId, t, themeColors]);
+	}, [sessionId, t]);
 
 	useEffect(() => {
 		zoomLevelRef.current = 0;
@@ -368,13 +417,7 @@ export function PtyTerminalView({ sessionId, active, compactChrome, onSessionExi
 			return;
 		}
 		term.options.theme = {
-			background: themeColors.background,
-			foreground: themeColors.foreground,
-			cursor: themeColors.cursor,
-			cursorAccent: themeColors.background,
-			selectionBackground: themeColors.selectionBackground,
-			black: themeColors.black,
-			brightBlack: themeColors.brightBlack,
+			...themeColors,
 		};
 		try {
 			term.refresh(0, term.rows - 1);
@@ -393,18 +436,25 @@ export function PtyTerminalView({ sessionId, active, compactChrome, onSessionExi
 		if (!term || !fit || !shell) {
 			return;
 		}
-		const id = requestAnimationFrame(() => {
+		const runFitAndRefresh = () => {
 			try {
 				fit.fit();
 				const dims = fit.proposeDimensions();
 				if (dims) {
 					void shell.invoke('term:sessionResize', sessionId, dims.cols, dims.rows);
 				}
+				term.refresh(0, term.rows - 1);
+				term.focus();
 			} catch {
 				/* ignore */
 			}
-		});
-		return () => cancelAnimationFrame(id);
+		};
+		const id = requestAnimationFrame(runFitAndRefresh);
+		const timer = setTimeout(runFitAndRefresh, 60);
+		return () => {
+			cancelAnimationFrame(id);
+			clearTimeout(timer);
+		};
 	}, [active, sessionId]);
 
 	useEffect(() => {
@@ -520,35 +570,177 @@ export function PtyTerminalView({ sessionId, active, compactChrome, onSessionExi
 	);
 }
 
-function readCssVar(name: string, fallback: string): string {
-	try {
-		const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-		return value || fallback;
-	} catch {
-		return fallback;
-	}
+function getLiveComputedBg(fallback: string): string {
+	if (typeof document === 'undefined') return fallback;
+	const val =
+		document.documentElement.style.getPropertyValue('--void-bg-0') ||
+		getComputedStyle(document.documentElement).getPropertyValue('--void-bg-0');
+	return (val ? val.trim() : '') || fallback;
 }
 
-function readPtyThemeColors(): XTermThemeColors {
-	const background = readCssVar('--void-bg-0', '#11171c');
-	const foreground = readCssVar('--void-fg-0', '#f3f7f8');
-	const cursor = readCssVar('--void-ring', '#37d6d4');
-	return {
-		background,
-		foreground,
-		cursor,
-		selectionBackground: withAlpha(cursor, 0.33),
-		black: background,
-		brightBlack: readCssVar('--void-fg-3', '#657582'),
-	};
+function getLiveComputedFg(fallback: string): string {
+	if (typeof document === 'undefined') return fallback;
+	const val =
+		document.documentElement.style.getPropertyValue('--void-fg-0') ||
+		getComputedStyle(document.documentElement).getPropertyValue('--void-fg-0');
+	return (val ? val.trim() : '') || fallback;
 }
 
-function withAlpha(color: string, alpha: number): string {
-	const hex = color.trim();
-	if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-		return `${hex}${Math.round(alpha * 255)
-			.toString(16)
-			.padStart(2, '0')}`;
+function resolveThemeColors(preset: ThemePresetId, scheme: 'light' | 'dark'): XTermThemeColors {
+	if (scheme === 'light') {
+		const bg = getLiveComputedBg('#FFFFFF');
+		const fg = getLiveComputedFg('#1E293B');
+		return {
+			background: bg,
+			foreground: fg,
+			cursor: '#F59E0B', // Gold accent
+			cursorAccent: bg,
+			selectionBackground: 'rgba(59, 130, 246, 0.25)',
+			black: fg,
+			brightBlack: '#64748B',
+			red: '#DC2626',
+			brightRed: '#EF4444',
+			green: '#16A34A',
+			brightGreen: '#22C55E',
+			yellow: '#D97706',
+			brightYellow: '#F59E0B',
+			blue: '#2563EB',
+			brightBlue: '#3B82F6',
+			magenta: '#9333EA',
+			brightMagenta: '#A855F7',
+			cyan: '#0891B2',
+			brightCyan: '#06B6D4',
+			white: '#F8FAFC',
+			brightWhite: '#FFFFFF',
+		};
 	}
-	return `rgba(55, 214, 212, ${alpha})`;
+
+	switch (preset) {
+		case 'cursor':
+			return {
+				background: getLiveComputedBg('#121820'),
+				foreground: getLiveComputedFg('#E6EDF3'),
+				cursor: '#38BDF8',
+				cursorAccent: '#121820',
+				selectionBackground: 'rgba(56, 189, 248, 0.3)',
+				black: '#121820',
+				brightBlack: '#484F58',
+				red: '#F85149',
+				brightRed: '#FF7B72',
+				green: '#3FB950',
+				brightGreen: '#56D364',
+				yellow: '#D29922',
+				brightYellow: '#E3B341',
+				blue: '#38BDF8',
+				brightBlue: '#79C0FF',
+				magenta: '#BC8CFF',
+				brightMagenta: '#D2A8FF',
+				cyan: '#39C5CF',
+				brightCyan: '#56D4DD',
+				white: '#E6EDF3',
+				brightWhite: '#F0F6FC',
+			};
+
+		case 'graphite':
+			return {
+				background: getLiveComputedBg('#161A20'),
+				foreground: getLiveComputedFg('#F5F7FA'),
+				cursor: '#7AA2FF',
+				cursorAccent: '#161A20',
+				selectionBackground: 'rgba(122, 162, 255, 0.28)',
+				black: '#161A20',
+				brightBlack: '#4B5563',
+				red: '#EF4444',
+				brightRed: '#F87171',
+				green: '#10B981',
+				brightGreen: '#34D399',
+				yellow: '#FBBF24',
+				brightYellow: '#FDE047',
+				blue: '#7AA2FF',
+				brightBlue: '#93C5FD',
+				magenta: '#C084FC',
+				brightMagenta: '#E879F9',
+				cyan: '#38BDF8',
+				brightCyan: '#67E8F9',
+				white: '#E5E7EB',
+				brightWhite: '#F9FAFB',
+			};
+
+		case 'forest':
+			return {
+				background: getLiveComputedBg('#111915'),
+				foreground: getLiveComputedFg('#EEF8F1'),
+				cursor: '#56C987',
+				cursorAccent: '#111915',
+				selectionBackground: 'rgba(86, 201, 135, 0.28)',
+				black: '#111915',
+				brightBlack: '#374B3F',
+				red: '#E06C75',
+				brightRed: '#F87171',
+				green: '#56C987',
+				brightGreen: '#86EFAC',
+				yellow: '#E5C07B',
+				brightYellow: '#FDE047',
+				blue: '#4ADE80',
+				brightBlue: '#6EE7B7',
+				magenta: '#C678DD',
+				brightMagenta: '#D8B4FE',
+				cyan: '#56B6C2',
+				brightCyan: '#A7F3D0',
+				white: '#EEF8F1',
+				brightWhite: '#F0FDF4',
+			};
+
+		case 'sunset':
+			return {
+				background: getLiveComputedBg('#1A1513'),
+				foreground: getLiveComputedFg('#FFF4EE'),
+				cursor: '#FF9D5C',
+				cursorAccent: '#1A1513',
+				selectionBackground: 'rgba(255, 157, 92, 0.28)',
+				black: '#1A1513',
+				brightBlack: '#44352D',
+				red: '#F87171',
+				brightRed: '#FCA5A5',
+				green: '#34D399',
+				brightGreen: '#6EE7B7',
+				yellow: '#FBBF24',
+				brightYellow: '#FDE68A',
+				blue: '#FF9D5C',
+				brightBlue: '#FDBA74',
+				magenta: '#FB7185',
+				brightMagenta: '#FDA4AF',
+				cyan: '#F97316',
+				brightCyan: '#FB923C',
+				white: '#FFF4EE',
+				brightWhite: '#FFFFFF',
+			};
+
+		case 'async':
+		default:
+			// Albion Theme
+			return {
+				background: getLiveComputedBg('#0F172A'),
+				foreground: getLiveComputedFg('#E2E8F0'),
+				cursor: '#F59E0B', // Gold accent
+				cursorAccent: '#0F172A',
+				selectionBackground: 'rgba(59, 130, 246, 0.3)',
+				black: '#0F172A',
+				brightBlack: '#475569',
+				red: '#EF4444',
+				brightRed: '#F87171',
+				green: '#10B981',
+				brightGreen: '#34D399',
+				yellow: '#F59E0B',
+				brightYellow: '#FBBF24',
+				blue: '#3B82F6',
+				brightBlue: '#60A5FA',
+				magenta: '#EC4899',
+				brightMagenta: '#F472B6',
+				cyan: '#06B6D4',
+				brightCyan: '#22D3EE',
+				white: '#E2E8F0',
+				brightWhite: '#FFFFFF',
+			};
+	}
 }

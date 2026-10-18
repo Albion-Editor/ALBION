@@ -14,6 +14,9 @@ import {
 import type { editor as MonacoEditorNS } from 'monaco-editor';
 
 import { ChatMarkdown } from './ChatMarkdown';
+import { AlbionLogin } from './AlbionLogin';
+import { AlbionFuelGauge } from './AlbionFuelGauge';
+import { albionSignIn, albionSignOut, useAlbionAuth } from './albionAuthStore';
 import {
 	type AgentPendingPatch,
 	type AutoUpdateStatus,
@@ -279,6 +282,63 @@ export default function App({
 		workspaceManager,
 		settings,
 	});
+
+	const { token: albionToken } = useAlbionAuth();
+	const [checkingAuth, setCheckingAuth] = useState(true);
+
+	// ── Global auth state: restore on mount ──────────────────────────────────
+	useEffect(() => {
+		const ws = workspaceManager.workspace;
+		const wsName = typeof ws === 'string' && ws.trim() ? ws.split(/[\\/]/).filter(Boolean).pop() : null;
+		document.title = wsName ? `${wsName} — Albion` : 'Albion';
+	}, [workspaceManager.workspace]);
+
+	useEffect(() => {
+		async function checkAuth() {
+			if (window.asyncShell?.invoke) {
+				try {
+					const res = (await window.asyncShell.invoke('albion:auth:get')) as { ok?: boolean; token?: string; user?: { id: string; email?: string } } | undefined;
+					if (res && res.ok && res.token) {
+						albionSignIn(res.token, res.user ?? { id: 'albion-user' });
+					}
+				} catch {
+					/* ignore */
+				}
+			}
+			setCheckingAuth(false);
+			hideBootSplash();
+		}
+		checkAuth();
+	}, []);
+
+	// ── Global auth broadcast listener (IPC → all renderer windows) ──────────
+	// When ANY layout calls albion:auth:clear (sign out), the main process
+	// broadcasts 'albion:auth:state-changed' to every window.
+	useEffect(() => {
+		if (!window.asyncShell?.subscribeAuthState) return;
+		return window.asyncShell.subscribeAuthState((payload) => {
+			if (!payload.isAuthenticated) {
+				albionSignOut();
+			} else if (payload.user && typeof payload === 'object') {
+				const token = (payload as { token?: string }).token || '';
+				albionSignIn(token, payload.user);
+			}
+		});
+	}, []);
+
+	if (checkingAuth) {
+		return null;
+	}
+
+	if (!albionToken) {
+		return (
+			<AlbionLogin
+				onLoginSuccess={(token, user) => {
+					albionSignIn(token, user);
+				}}
+			/>
+		);
+	}
 
 	return (
 		<AppShellProviders
@@ -1136,6 +1196,16 @@ function AppMainWorkspaceInner() {
 		openSettingsPage('browser');
 	}, [openSettingsPage]);
 
+	useEffect(() => {
+		const handleOpenNav = (e: Event) => {
+			const customEvent = e as CustomEvent<{ nav?: SettingsNavId }>;
+			const targetNav = customEvent.detail?.nav ?? 'account';
+			openSettingsPage(targetNav);
+		};
+		window.addEventListener('albion:open-settings', handleOpenNav);
+		return () => window.removeEventListener('albion:open-settings', handleOpenNav);
+	}, [openSettingsPage]);
+
 	const workspaceBasename = useMemo(() => {
 		if (!workspace) {
 			return t('app.noWorkspace');
@@ -1682,13 +1752,18 @@ function AppMainWorkspaceInner() {
 	 * loadMessages 的 onLoad 回调：在 startTransition 内与 setMessages 同批执行，
 	 * 避免 messages 变化后 useEffect 级联触发额外 render 轮次。
 	 */
-	// 上一轮 awaitingReply 状态：用来在 turn 结束（true → false）时同步一次真实快照集合。
+	const [fuelGaugeRefreshSeq, setFuelGaugeRefreshSeq] = useState(0);
+	// 上一轮 awaitingReply 状态：用来在 turn 结束（true → false）时同步一次真实快照集合与刷新燃料表。
 	const prevAwaitingReplyRef = useRef(false);
 	useEffect(() => {
 		const was = prevAwaitingReplyRef.current;
 		prevAwaitingReplyRef.current = awaitingReply;
-		if (was && !awaitingReply && currentId) {
-			void refreshRevertableSnapshots(currentId);
+		if (was && !awaitingReply) {
+			setFuelGaugeRefreshSeq((s) => s + 1);
+			window.dispatchEvent(new CustomEvent('albion:refresh-caps'));
+			if (currentId) {
+				void refreshRevertableSnapshots(currentId);
+			}
 		}
 	}, [awaitingReply, currentId, refreshRevertableSnapshots]);
 
@@ -2044,12 +2119,8 @@ function AppMainWorkspaceInner() {
 		if (!text) {
 			return;
 		}
-		const effectiveModelId = (opts?.modelIdOverride ?? defaultModel).trim();
-		if (!effectiveModelId) {
-			flashComposerAttachErr(t('app.noModelSelected'));
-			return;
-		}
-		await sendMessage(text, { ...opts, segments });
+		const effectiveModelId = (opts?.modelIdOverride || defaultModel || 'auto').trim();
+		await sendMessage(text, { ...opts, segments, modelIdOverride: effectiveModelId });
 	};
 
 	const onSend = useCallback(async (textOverride?: string, opts?: OnSendOptions) => {
@@ -4261,6 +4332,18 @@ function AppMainWorkspaceInner() {
 		}
 	});
 
+	const { user: albionUser } = useAlbionAuth();
+	const handleAlbionSignOut = useCallback(async () => {
+		albionSignOut();
+		if (window.asyncShell?.invoke) {
+			try {
+				await window.asyncShell.invoke('albion:auth:clear');
+			} catch {
+				/* ignore IPC errors */
+			}
+		}
+	}, []);
+
 	const shellSettingsPageProps = useMemo(
 		(): SettingsPageProps => ({
 			initialNav: settingsInitialNav,
@@ -4301,6 +4384,8 @@ function AppMainWorkspaceInner() {
 			appearanceSettings,
 			onChangeAppearanceSettings: setAppearanceSettings,
 			showTransientToast,
+			albionUser,
+			onSignOut: handleAlbionSignOut,
 		}),
 		[
 			settingsInitialNav,
@@ -4340,6 +4425,8 @@ function AppMainWorkspaceInner() {
 			appearanceSettings,
 			setAppearanceSettings,
 			showTransientToast,
+			albionUser,
+			handleAlbionSignOut,
 		]
 	);
 
@@ -4571,6 +4658,8 @@ function AppMainWorkspaceInner() {
 					</button>
 				</div>
 			) : null}
+
+			<AlbionFuelGauge refreshTrigger={fuelGaugeRefreshSeq} />
 		</div>
 		</ComposerActionsProvider>
 		</AppProvider>

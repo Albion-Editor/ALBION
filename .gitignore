@@ -2,10 +2,20 @@ node_modules/
 dist/
 release/
 *.log
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.zip
+*.tar.gz
+*.blockmap
 .DS_Store
 Thumbs.db
+
 # IDE
 .idea/
+/.vscode/settings.json
 
 # Local agent / IDE config (per-machine, per-repo)
 .cursor/
@@ -20,5 +30,6 @@ resources/builtin-team/
 # Local env / OS
 .env
 .env.*
+.env.local
+.env.production
 REFACTOR_PLAN.md
-/.vscode/settings.json

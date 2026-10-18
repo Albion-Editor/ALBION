@@ -1,19 +1,20 @@
 :root[data-ui-style='mac-codex']:not([data-color-scheme]),
 :root[data-ui-style='mac-codex'][data-color-scheme='dark'] {
 	color-scheme: dark;
-	--void-bg-0: #11171c;
-	--void-bg-1: #151c22;
-	--void-bg-2: #1e2831;
-	--void-bg-3: #293743;
-	--void-fg-0: #f3f7f8;
-	--void-fg-1: #ced7dc;
-	--void-fg-2: #94a3af;
-	--void-fg-3: #657582;
-	--void-accent-cool: #37d6d4;
+	--void-bg-0: #0F172A;
+	--void-bg-1: #1E293B;
+	--void-bg-2: #334155;
+	--void-bg-3: #475569;
+	--void-fg-0: #F8FAFC;
+	--void-fg-1: #E2E8F0;
+	--void-fg-2: #94A3B8;
+	--void-fg-3: #64748B;
+	--void-accent-cool: #3B82F6;
 	--void-accent-cool-soft: color-mix(in srgb, var(--void-accent-cool) 16%, transparent);
-	--void-accent-warm: #ff9d59;
+	--void-accent-warm: #F59E0B;
+	--void-accent-premium: #F59E0B;
 	/** Ask / 辅助蓝（与主强调青区分，供 mode chip 等） */
-	--void-accent-assist: #8aa8ff;
+	--void-accent-assist: #60A5FA;
 	--void-accent-warm-soft: color-mix(in srgb, var(--void-accent-warm) 16%, transparent);
 	--void-accent-glow: color-mix(in srgb, var(--void-accent-cool) 18%, transparent);
 	--void-accent-soft: color-mix(in srgb, var(--void-accent-cool) 10%, transparent);
@@ -22,7 +23,7 @@
 	--void-thought-detail: #a5b2bd;
 	--void-border: color-mix(in srgb, var(--void-fg-1) 14%, transparent);
 	--void-border-soft: color-mix(in srgb, var(--void-fg-1) 7%, transparent);
-	--void-ring: #37d6d4;
+	--void-ring: #3B82F6;
 	--void-git-untracked: #59d9b8;
 	--void-git-modified: #ffb05b;
 	--void-git-added: #70d89d;
@@ -40,9 +41,9 @@
 	--void-scrollbar-thumb: color-mix(in srgb, var(--void-fg-2) 42%, transparent);
 	--void-scrollbar-thumb-hover: color-mix(in srgb, var(--void-fg-1) 56%, transparent);
 	--void-scrollbar-thumb-active: color-mix(in srgb, var(--void-fg-1) 64%, transparent);
-	--void-settings-root-bg: #151C22;
-	--ref-menubar-chrome-bg: #161D24;
-	--void-sidebar-fill: #161D24;
+	--void-settings-root-bg: #0F172A;
+	--ref-menubar-chrome-bg: #0F172A;
+	--void-sidebar-fill: #0F172A;
 	--void-shadow-card: 0 20px 44px color-mix(in srgb, black 26%, transparent);
 	--void-shadow-soft: inset 0 1px 0 color-mix(in srgb, var(--void-fg-0) 3%, transparent);
 
@@ -85,3 +86,38 @@
 	--surface-card-bg-soft: var(--void-bg-2);
 	--app-backdrop: var(--void-bg-0);
 }
+
+/* ── Albion Aggressive Theme Enforcement: Dark Mode ── */
+:root[data-color-scheme='dark'],
+:root[data-ui-style='mac-codex']:not([data-color-scheme]),
+:root[data-ui-style='mac-codex'][data-color-scheme='dark'] {
+	background-color: #0F172A !important;
+	color: #F8FAFC !important;
+}
+
+:root:not([data-color-scheme='light']) .monaco-workbench,
+:root:not([data-color-scheme='light']) .part,
+:root:not([data-color-scheme='light']) .sidebar,
+:root:not([data-color-scheme='light']) .ref-editor-split-bottom,
+:root:not([data-color-scheme='light']) .ref-bottom-panel-header,
+:root:not([data-color-scheme='light']) .ref-bottom-panel-content {
+	background-color: var(--void-bg-0, #0F172A) !important;
+	color: var(--void-fg-0, #E2E8F0) !important;
+}
+
+:root:not([data-color-scheme='light']) .ref-editor-terminal-stack,
+:root:not([data-color-scheme='light']) .ref-editor-terminal-pane,
+:root:not([data-color-scheme='light']) .pty-term-root,
+:root:not([data-color-scheme='light']) .pty-term-root .ref-uterm-tab-term-wrap,
+:root:not([data-color-scheme='light']) .xterm-viewport,
+:root:not([data-color-scheme='light']) .xterm-screen {
+	background-color: var(--terminal-bg, var(--void-bg-0, #0F172A)) !important;
+	color: var(--terminal-fg, var(--void-fg-0, #E2E8F0)) !important;
+}
+
+:root:not([data-color-scheme='light']) .ref-bottom-panel-tab-btn.is-active,
+:root:not([data-color-scheme='light']) .ref-editor-terminal-tab.is-active {
+	color: #F8FAFC !important;
+	border-bottom: 2px solid var(--terminal-accent, #F59E0B) !important;
+}
+

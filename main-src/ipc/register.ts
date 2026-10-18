@@ -20,6 +20,13 @@ import {
 	registerKnownWorkspaceRelPath,
 	setWorkspaceFsTouchNotifier,
 } from '../workspaceFileIndex.js';
+import {
+	saveAlbionToken,
+	getAlbionToken,
+	getAlbionUser,
+	clearAlbionToken,
+	setAlbionForceModel,
+} from '../llm/albionTransport.js';
 
 setWorkspaceFileIndexReadyBroadcaster((rootNorm) => {
 	for (const w of BrowserWindow.getAllWindows()) {
@@ -1236,13 +1243,10 @@ export function registerIpc(): void {
 			const streamNonce = typeof payload.streamNonce === 'number' ? payload.streamNonce : undefined;
 			const mode = parseComposerMode(payload.mode);
 			const rawMid = payload.modelId;
-			const modelSelection = typeof rawMid === 'string' ? rawMid.trim() : '';
+			const modelSelection = typeof rawMid === 'string' && rawMid.trim() ? rawMid.trim() : 'auto';
 			const win = BrowserWindow.fromWebContents(event.sender);
 			if (!win) {
 				return { ok: false as const, error: 'no-window' as const };
-			}
-			if (!modelSelection || modelSelection.toLowerCase() === 'auto') {
-				return { ok: false as const, error: 'no-model' as const };
 			}
 
 			const chatSendLatencyT0 = Date.now();
@@ -1501,13 +1505,10 @@ export function registerIpc(): void {
 			const streamNonce = typeof payload.streamNonce === 'number' ? payload.streamNonce : undefined;
 			const mode = parseComposerMode(payload.mode);
 			const rawMid = payload.modelId;
-			const modelSelection = typeof rawMid === 'string' ? rawMid.trim() : '';
+			const modelSelection = typeof rawMid === 'string' && rawMid.trim() ? rawMid.trim() : 'auto';
 			const win = BrowserWindow.fromWebContents(event.sender);
 			if (!win) {
 				return { ok: false as const, error: 'no-window' as const };
-			}
-			if (!modelSelection || modelSelection.toLowerCase() === 'auto') {
-				return { ok: false as const, error: 'no-model' as const };
 			}
 			const trimmed = typeof text === 'string' ? text.trim() : '';
 			if (!trimmed) {
@@ -2087,6 +2088,69 @@ ipcMain.handle(
 	});
 
 
-	/** 自动更新：检查更新 */
+	/** Albion Auth IPC handlers */
+	ipcMain.handle('albion:auth:save', (_e, payload: { token: string; user?: { id: string; email?: string } }) => {
+		try {
+			saveAlbionToken(payload.token, payload.user);
+			console.log('[IPC] albion:auth:save saved token for:', payload.user?.email || 'user');
+			// Broadcast login to ALL renderer windows so every layout authenticates instantly
+			for (const win of BrowserWindow.getAllWindows()) {
+				if (!win.isDestroyed()) {
+					try {
+						win.webContents.send('albion:auth:state-changed', { isAuthenticated: true, user: payload.user ?? null });
+					} catch {
+						/* ignore destroyed window */
+					}
+				}
+			}
+			return { ok: true as const };
+		} catch (e) {
+			console.error('[IPC] albion:auth:save error:', e);
+			return { ok: false as const, error: String(e) };
+		}
+	});
 
+	ipcMain.handle('albion:auth:get', () => {
+		try {
+			const token = getAlbionToken();
+			const user = getAlbionUser();
+			console.log('[IPC] albion:auth:get token present:', Boolean(token), 'user:', user?.email);
+			return { ok: true as const, token, user };
+		} catch (e) {
+			console.error('[IPC] albion:auth:get error:', e);
+			return { ok: false as const, error: String(e), token: null, user: null };
+		}
+	});
+
+	ipcMain.handle('albion:auth:clear', () => {
+		try {
+			clearAlbionToken();
+			// Broadcast logout to ALL renderer windows so every layout clears instantly
+			for (const win of BrowserWindow.getAllWindows()) {
+				if (!win.isDestroyed()) {
+					try {
+						win.webContents.send('albion:auth:state-changed', { isAuthenticated: false, user: null });
+					} catch {
+						/* ignore destroyed window */
+					}
+				}
+			}
+			console.log('[IPC] albion:auth:clear: token cleared, broadcasted logout to all windows');
+			return { ok: true as const };
+		} catch (e) {
+			console.error('[IPC] albion:auth:clear error:', e);
+			return { ok: false as const, error: String(e) };
+		}
+	});
+
+	ipcMain.handle('albion:model:force', (_e, model: string | null) => {
+		try {
+			setAlbionForceModel(model);
+			console.log('[IPC] albion:model:force set to:', model || 'auto');
+			return { ok: true as const, model };
+		} catch (e) {
+			console.error('[IPC] albion:model:force error:', e);
+			return { ok: false as const, error: String(e) };
+		}
+	});
 }

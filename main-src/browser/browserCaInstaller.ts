@@ -6,8 +6,8 @@ import { platform } from 'node:os';
 export type CaInstallResult = { ok: true } | { ok: false; error: string };
 export type CaInstallScope = 'user' | 'machine';
 
-const ASYNC_CA_FRIENDLY_NAME = 'Async IDE Local Capture Root';
-const ASYNC_LINUX_DEST = '/usr/local/share/ca-certificates/async-ide-capture-ca.crt';
+const ASYNC_CA_FRIENDLY_NAME = 'Albion IDE Local Capture Root';
+const ALBION_LINUX_DEST = '/usr/local/share/ca-certificates/albion-ide-capture-ca.crt';
 
 type ExecResult = { stdout: string; stderr: string; code: number | null };
 
@@ -65,7 +65,7 @@ function readPemSha1(certPath: string | undefined): string | null {
 async function sudoExec(cmd: string): Promise<void> {
 	const sudo = (await import('@vscode/sudo-prompt')) as typeof import('@vscode/sudo-prompt');
 	await new Promise<void>((resolve, reject) => {
-		sudo.exec(cmd, { name: 'Async IDE' }, (err?: Error, _stdout?: string | Buffer, stderr?: string | Buffer) => {
+		sudo.exec(cmd, { name: 'Albion IDE' }, (err?: Error, _stdout?: string | Buffer, stderr?: string | Buffer) => {
 			if (err) {
 				const message = (stderr ? stderr.toString().trim() : '') || err.message;
 				reject(new Error(message));
@@ -179,19 +179,19 @@ async function uninstallMacOS(certPath: string, scope: CaInstallScope): Promise<
 }
 
 async function isInstalledLinux(): Promise<boolean> {
-	return existsSync(ASYNC_LINUX_DEST);
+	return existsSync(ALBION_LINUX_DEST);
 }
 
 async function installLinux(certPath: string, _scope: CaInstallScope): Promise<void> {
 	// Linux only supports system-wide CA trust; ignore scope here.
-	await sudoExec(`cp "${certPath}" "${ASYNC_LINUX_DEST}" && update-ca-certificates`);
+	await sudoExec(`cp "${certPath}" "${ALBION_LINUX_DEST}" && update-ca-certificates`);
 }
 
 async function uninstallLinux(_scope: CaInstallScope): Promise<void> {
-	if (!existsSync(ASYNC_LINUX_DEST)) {
+	if (!existsSync(ALBION_LINUX_DEST)) {
 		return;
 	}
-	await sudoExec(`rm -f "${ASYNC_LINUX_DEST}" && update-ca-certificates --fresh`);
+	await sudoExec(`rm -f "${ALBION_LINUX_DEST}" && update-ca-certificates --fresh`);
 }
 
 export const CaInstaller = {

@@ -71,6 +71,7 @@ import {
 	prependProviderIdentitySystemPrompt,
 	providerIdentityForOAuthAuth,
 } from '../llm/providerIdentity.js';
+import { applyAlbionTransport } from '../llm/albionTransport.js';
 import {
 	resolveProviderIdentityWithOverride,
 	type ProviderIdentitySettings,
@@ -757,7 +758,7 @@ async function runOpenAILoop(
 
 	const baseURL = options.requestBaseURL?.trim() || undefined;
 	const model = options.requestModelId.trim();
-	if (!model) { handlers.onError('模型请求名称为空。请在 Models 中编辑该模型的「请求名称」。'); return; }
+	if (!model) { handlers.onError('Model request name is empty. Please edit the model request name in Settings → Models.'); return; }
 
 	const openaiSyncPrepStart = Date.now();
 
@@ -765,19 +766,21 @@ async function runOpenAILoop(
 	let httpAgent: InstanceType<typeof HttpsProxyAgent> | undefined;
 	if (proxyRaw) {
 		try { httpAgent = new HttpsProxyAgent(proxyRaw); } catch {
-			handlers.onError('代理地址无效。'); return;
+			handlers.onError('Invalid proxy address.'); return;
 		}
 	}
 
 	const client = new OpenAI(
-		applyOpenAIProviderIdentity(settings, {
-			apiKey: key,
-			baseURL,
-			httpAgent,
-			dangerouslyAllowBrowser: false,
-			timeout: llmSdkResponseHeadTimeoutMs(),
-			maxRetries: 0,
-		}, options.requestProviderIdentity)
+		applyAlbionTransport(
+			applyOpenAIProviderIdentity(settings, {
+				apiKey: key,
+				baseURL,
+				httpAgent,
+				dangerouslyAllowBrowser: false,
+				timeout: llmSdkResponseHeadTimeoutMs(),
+				maxRetries: 0,
+			}, options.requestProviderIdentity)
+		)
 	);
 	const storedSystem = threadMessages.find((m) => m.role === 'system');
 	const systemContent = appendMcpToolsSystemHint(
@@ -917,7 +920,7 @@ async function runOpenAILoop(
 		try {
 			args = JSON.parse(tc.arguments || '{}');
 		} catch (parseErr) {
-			const msg = `工具参数 JSON 无效：${parseErr instanceof Error ? parseErr.message : String(parseErr)}。请提供合法的 JSON。`;
+			const msg = `Invalid tool argument JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}. Please provide valid JSON.`;
 			if (mistakeLimitEnabled) consecutiveToolFailures++;
 			return {
 				call: tc,

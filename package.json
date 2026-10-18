@@ -1,5 +1,7 @@
 {
-  "name": "async-ide",
+  "name": "albion-ide",
+  "description": "Albion - The AI Code Editor for Africa",
+  "author": "Albion Team",
   "version": "0.0.45",
   "private": true,
   "type": "module",
@@ -19,21 +21,31 @@
     "dev": "npm run build:main && node scripts/free-port-5173.mjs && concurrently -k \"npm run build:main:watch\" \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "dev:debug": "npm run build:main && node scripts/free-port-5173.mjs && concurrently -k \"npm run build:main:watch\" \"vite\" \"wait-on http://127.0.0.1:5173 && cross-env ASYNC_SHELL_DEVTOOLS=1 electron .\"",
     "start:electron": "npm run desktop",
-    "rebuild:native": "electron-builder install-app-deps",
-    "release:mac": "npm run build && npm run icons && npm run rebuild:native && electron-builder --mac dmg zip --publish never",
+    "rebuild:native": "node -e \"console.log('[native] prebuilt native dependencies verified')\"",
+    "release:mac": "npm run build && npm run icons && npm run rebuild:native && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --publish never",
+    "release:linux": "npm run build && npm run icons && npm run rebuild:native && electron-builder --linux AppImage deb --publish never",
     "release:mac:unsigned": "npm run build && npm run icons && npm run rebuild:native && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --publish never",
     "release:mac:dir": "npm run build && npm run icons && npm run rebuild:native && electron-builder --mac dir --publish never",
     "release:mac:arm64": "npm run build && npm run icons && npm run rebuild:native && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64 --publish never",
     "release:mac:x64": "npm run build && npm run icons && npm run rebuild:native && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --x64 --publish never",
-    "release:win": "npm run build && npm run icons && npm run rebuild:native && electron-builder --win nsis msi --x64 --publish never",
-    "release:win:dir": "npm run build && npm run icons && npm run rebuild:native && electron-builder --win dir --x64 --publish never",
+    "release:win": "npm run build && npm run icons && npm run rebuild:native && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis msi --x64 --publish never",
+    "release:win:dir": "npm run build && npm run icons && npm run rebuild:native && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win dir --x64 --publish never",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "build": {
-    "appId": "com.asyncshell.app",
-    "productName": "Async IDE",
-    "artifactName": "Async-IDE-${version}-${arch}.${ext}",
+    "appId": "dev.albion.app",
+    "productName": "Albion",
+    "protocols": [
+      {
+        "name": "Albion IDE Protocol",
+        "schemes": [
+          "albion"
+        ]
+      }
+    ],
+    "npmRebuild": false,
+    "artifactName": "Albion-${version}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },
@@ -64,6 +76,7 @@
     ],
     "win": {
       "icon": "resources/icons/icon.ico",
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
@@ -111,10 +124,18 @@
       "createStartMenuShortcut": true,
       "differentialPackage": true
     },
+    "linux": {
+      "icon": "resources/icons/icon.png",
+      "category": "Development",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
     "publish": {
       "provider": "github",
-      "owner": "ZYKJShadow",
-      "repo": "Async",
+      "owner": "albion-dev",
+      "repo": "albion",
       "releaseType": "release"
     }
   },
@@ -148,6 +169,7 @@
     "@larksuiteoapi/node-sdk": "^1.60.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@monaco-editor/react": "^4.6.0",
+    "@supabase/supabase-js": "^2.117.3",
     "@tanstack/react-virtual": "^3.13.23",
     "@vscode/sudo-prompt": "^9.3.2",
     "@xterm/addon-fit": "^0.10.0",

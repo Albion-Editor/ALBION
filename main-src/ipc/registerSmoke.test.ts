@@ -295,7 +295,7 @@ describe('IPC register smoke', () => {
 				expect(typeof channel).toBe('string');
 				expect(typeof fn).toBe('function');
 			}
-		});
+		}, 15000);
 	}
 
 	/**

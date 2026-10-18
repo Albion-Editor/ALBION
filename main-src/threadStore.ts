@@ -147,7 +147,7 @@ type LegacyStoreFile = {
 const GLOBAL_BUCKET_KEY = '__global__';
 const DEFAULT_THREAD_TITLE = THREAD_TITLE_PLACEHOLDER;
 const SYSTEM_PROMPT =
-	'You are Async, a concise coding assistant. Use markdown for code. The user workspace is open in the app.';
+	'You are Albion, a premier AI-native software engineering assistant. Use markdown for code. The user workspace is open in the app.';
 const MAX_THREAD_TITLE_LEN = 200;
 
 export type ThreadTitleSource = 'placeholder' | 'fallback' | 'auto' | 'manual';

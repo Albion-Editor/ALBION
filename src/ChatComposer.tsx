@@ -4,18 +4,22 @@ import {
 	type RefObject,
 	type SetStateAction,
 	useContext,
+	useEffect,
+	useMemo,
+	useState,
 } from 'react';
 import { ComposerGitBranchRow, type ComposerContextMeterState } from './ComposerGitBranchRow';
 import { ComposerActionsContext } from './ComposerActionsContext';
 import { ComposerModeIcon, composerModeLabel, type ComposerMode } from './ComposerPlusMenu';
 import { ComposerRichInput } from './ComposerRichInput';
 import { type ComposerSegment, type PersistedComposerAttachment } from './composerSegments';
+import { fetchAlbionPricing, getCachedAlbionPricing, type ModelPricingItem } from './albionPricing';
 import { useI18n } from './i18n';
+import { useAlbionAuth } from './albionAuthStore';
 import {
 	IconArrowUp,
 	IconChevron,
 	IconImageOutline,
-	IconMic,
 	IconStop,
 } from './icons';
 import { type AtComposerSlot } from './useComposerAtMention';
@@ -147,6 +151,18 @@ export function ChatComposer({
 				? modelPillBottomRef
 				: modelPillInlineRef;
 	const isBottomSlot = slot === 'bottom';
+	const [capExceededModalOpen, setCapExceededModalOpen] = useState(false);
+
+	useEffect(() => {
+		const handleCapExceeded = () => {
+			setCapExceededModalOpen(true);
+		};
+		window.addEventListener('albion:cap-exceeded', handleCapExceeded);
+		return () => {
+			window.removeEventListener('albion:cap-exceeded', handleCapExceeded);
+		};
+	}, []);
+
 	const showModelPicker = composerMode !== 'team';
 	const inputPlaceholder =
 		isBottomSlot && hasConversation ? followUpComposerPlaceholder : composerPlaceholder;
@@ -173,6 +189,57 @@ export function ChatComposer({
 		}
 	};
 
+	const hasImageAttached = useMemo(() => {
+		return segments.some(
+			(s) =>
+				s.kind === 'file' &&
+				(Boolean(s.imageMeta) || /\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(s.path))
+		);
+	}, [segments]);
+
+	const albionAuth = useAlbionAuth();
+	const userTier = (albionAuth.user?.tier || 'free').toLowerCase();
+	const isFreeTier = userTier === 'free';
+
+	const predictedModel = isFreeTier
+		? 'openrouter-free'
+		: hasImageAttached
+			? 'qwen3.6-35b-a3b'
+			: 'deepseek-v4-flash';
+
+	const inputCharLength = useMemo(() => {
+		let len = 0;
+		for (const s of segments) {
+			if (s.kind === 'text') len += s.text.length;
+			else if (s.kind === 'command') len += String(s.command).length;
+			else if (s.kind === 'skill') len += s.slug.length;
+			else if (s.kind === 'file' && !s.imageMeta && !/\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(s.path)) len += s.path.length;
+		}
+		return len;
+	}, [segments]);
+
+	const contextEstimate = composerContextMeter?.usedEstimate?.tokens ?? 0;
+	const estimatedTokens = Math.round(inputCharLength / 4) + contextEstimate;
+
+	const [pricingMap, setPricingMap] = useState<Record<string, ModelPricingItem> | null>(getCachedAlbionPricing());
+
+	useEffect(() => {
+		let isMounted = true;
+		void fetchAlbionPricing().then((map) => {
+			if (isMounted) setPricingMap(map);
+		});
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
+	const modelPricing = pricingMap?.[predictedModel];
+	const costPer1k = modelPricing?.cost_per_1k ?? (predictedModel === 'qwen3.6-35b-a3b' ? 0.00025 : 0.00014);
+	const calculatedCost = isFreeTier ? 0 : (estimatedTokens / 1000) * costPer1k;
+	const priceFormatted = calculatedCost === 0 ? '$0.00' : `$${calculatedCost.toFixed(4)}`;
+
+	const hasContent = segments.some((s) => (s.kind === 'text' && s.text?.trim()) || s.kind === 'file') || inputCharLength > 0;
+
 	const capsule = (
 		<div
 			className={[
@@ -183,6 +250,27 @@ export function ChatComposer({
 				.filter(Boolean)
 				.join(' ')}
 		>
+			<div
+				className="ref-cost-radar"
+				data-testid="cost-radar"
+				style={{
+					fontSize: '11px',
+					lineHeight: '16px',
+					color: 'var(--text-subtle, rgba(255, 255, 255, 0.45))',
+					padding: '6px 12px 2px 12px',
+					userSelect: 'none',
+					whiteSpace: 'nowrap',
+					overflow: 'hidden',
+					textOverflow: 'ellipsis',
+					letterSpacing: '0.01em',
+				}}
+			>
+				{isFreeTier ? (
+					<>Auto: {predictedModel} · Free Tier ($0.00) · ≈ {estimatedTokens.toLocaleString()} tokens (Unlimited)</>
+				) : (
+					<>Auto: {predictedModel} · ≈ {estimatedTokens.toLocaleString()} tokens · {priceFormatted}</>
+				)}
+			</div>
 			<div className={isHero ? 'ref-composer-hero-body' : 'ref-composer-stacked-body'}>
 				<ComposerRichInput
 					innerRef={richRef}
@@ -243,28 +331,42 @@ export function ChatComposer({
 						<button
 							type="button"
 							className="ref-mic-btn"
-							disabled
-							title={t('app.comingSoon')}
-							aria-label={t('app.comingSoon')}
+							title={t('app.attachMedia') || 'Attach Image'}
+							aria-label="Attach Image"
+							onClick={() => {
+								const input = document.createElement('input');
+								input.type = 'file';
+								input.accept = 'image/*';
+								input.onchange = (e) => {
+									const files = Array.from((e.target as HTMLInputElement).files || []);
+									if (files.length > 0) {
+										void persistComposerAttachments(files).then((persisted) => {
+											if (persisted.length > 0) {
+												setSegments((prev) => [
+													...prev,
+													...persisted.map((p) => ({
+														id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+														kind: 'file' as const,
+														path: p.relPath,
+														imageMeta: p.imageMeta,
+													})),
+												]);
+											}
+										});
+									}
+								};
+								input.click();
+							}}
 						>
 							<IconImageOutline className="ref-mic-btn-svg" />
 						</button>
 					) : null}
 					<button
 						type="button"
-						className="ref-mic-btn"
-						disabled
-						title={t('app.voiceSoonTitle')}
-						aria-label={t('app.voiceSoonAria')}
-					>
-						<IconMic className="ref-mic-btn-svg" />
-					</button>
-					<button
-						type="button"
 						className={`ref-send-btn ${awaitingReply ? 'is-stop' : ''}`}
 						title={sendTitle}
 						aria-label={sendTitle}
-						disabled={!awaitingReply && !canSend}
+						disabled={!awaitingReply && !canSend && !hasContent}
 						onClick={() => (awaitingReply ? onAbortFn() : onSendFn())}
 					>
 						{awaitingReply ? <IconStop className="ref-send-icon" /> : <IconArrowUp className="ref-send-icon" />}
@@ -274,12 +376,80 @@ export function ChatComposer({
 		</div>
 	);
 
+	const upgradeNudgeBanner = capExceededModalOpen ? (
+		<div
+			style={{
+				margin: '0 0 8px 0',
+				padding: '10px 14px',
+				borderRadius: '8px',
+				background: 'linear-gradient(135deg, rgba(245, 166, 35, 0.12), rgba(74, 144, 217, 0.12))',
+				border: '1px solid rgba(245, 166, 35, 0.35)',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'space-between',
+				gap: '12px',
+				fontSize: '12.5px',
+				color: '#E2E8F0',
+				boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+			}}
+		>
+			<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+				<span style={{ fontSize: '15px' }}>⚡</span>
+				<span>
+					You&apos;ve reached your daily free limit (50 messages).{' '}
+					<strong>Upgrade to Starter ($8/mo)</strong> for unlimited fast requests, or your limit resets at midnight.
+				</span>
+			</div>
+			<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+				<button
+					type="button"
+					onClick={() => {
+						window.dispatchEvent(new CustomEvent('albion:open-settings', { detail: { nav: 'account' } }));
+					}}
+					style={{
+						padding: '4px 10px',
+						borderRadius: '5px',
+						background: '#F5A623',
+						color: '#0F172A',
+						fontWeight: 600,
+						fontSize: '11.5px',
+						border: 'none',
+						cursor: 'pointer',
+					}}
+				>
+					Upgrade to Starter ($8/mo)
+				</button>
+				<button
+					type="button"
+					onClick={() => setCapExceededModalOpen(false)}
+					style={{
+						background: 'transparent',
+						border: 'none',
+						color: '#94A3B8',
+						cursor: 'pointer',
+						fontSize: '14px',
+						padding: '2px 6px',
+					}}
+					title="Dismiss"
+				>
+					✕
+				</button>
+			</div>
+		</div>
+	) : null;
+
 	if (slot !== 'bottom' || !showGitBranchRow) {
-		return capsule;
+		return (
+			<>
+				{upgradeNudgeBanner}
+				{capsule}
+			</>
+		);
 	}
 
 	return (
 		<div className="ref-composer-stack-with-branch">
+			{upgradeNudgeBanner}
 			{capsule}
 			<ComposerGitBranchRow
 				ref={composerGitBranchAnchorRef}

@@ -40,22 +40,22 @@ export function buildRuleCreatorSystemAppend(
 	const globHint =
 		ruleScope === 'glob'
 			? lang === 'en'
-				? `The user chose **glob-scoped** rules. Target glob (relative to workspace): \`${(globPattern ?? '').trim() || '(user should refine)'}\`. Explain how it maps to Async **Settings → Agent → Rules** with scope "glob".`
-				: `用户选择 **Glob 范围** 规则。目标 glob（相对工作区）：\`${(globPattern ?? '').trim() || '（请与用户确认）'}\`。说明如何对应 Async **设置 → Agent → Rules** 中的「Glob」范围与填写方式。`
+				? `The user chose **glob-scoped** rules. Target glob (relative to workspace): \`${(globPattern ?? '').trim() || '(user should refine)'}\`. Explain how it maps to Albion **Settings → Agent → Rules** with scope "glob".`
+				: `用户选择 **Glob 范围** 规则。目标 glob（相对工作区）：\`${(globPattern ?? '').trim() || '（请与用户确认）'}\`。说明如何对应 Albion **设置 → Agent → Rules** 中的「Glob」范围与填写方式。`
 			: '';
 
 	const wizardChoiceBlock =
 		ruleScope === 'always'
 			? lang === 'en'
-				? '**Already chosen in Async wizard:** always attach (every turn). In question (2) below, confirm they still want always-on behavior or note if they want to switch to file-based globs.'
-				: '**用户在 Async 向导中已选：**「始终附加」（每轮对话都带上）。下方第 2 点可简化为确认是否仍要全局生效；若用户想改成按文件匹配，再引导补充 globs。'
+				? '**Already chosen in Albion wizard:** always attach (every turn). In question (2) below, confirm they still want always-on behavior or note if they want to switch to file-based globs.'
+				: '**用户在 Albion 向导中已选：**「始终附加」（每轮对话都带上）。下方第 2 点可简化为确认是否仍要全局生效；若用户想改成按文件匹配，再引导补充 globs。'
 			: ruleScope === 'glob'
 				? lang === 'en'
-					? `**Already chosen in Async wizard:** glob-scoped. Preset glob: \`${(globPattern ?? '').trim() || '(ask user)'}\`. In question (2), ask them to confirm or list additional patterns (comma or newline).`
-					: `**用户在 Async 向导中已选：**「路径 Glob」。预设 glob：\`${(globPattern ?? '').trim() || '（请与用户确认）'}\`。第 2 点请对方确认该模式或补充多条（逗号或分行）。`
+					? `**Already chosen in Albion wizard:** glob-scoped. Preset glob: \`${(globPattern ?? '').trim() || '(ask user)'}\`. In question (2), ask them to confirm or list additional patterns (comma or newline).`
+					: `**用户在 Albion 向导中已选：**「路径 Glob」。预设 glob：\`${(globPattern ?? '').trim() || '（请与用户确认）'}\`。第 2 点请对方确认该模式或补充多条（逗号或分行）。`
 				: lang === 'en'
-					? '**Already chosen in Async wizard:** manual @ only. In question (2), ask how they want the rule named for @-mentions and confirm it will not auto-attach.'
-					: '**用户在 Async 向导中已选：**「手动 @ 触发」。第 2 点说明：仅在 @ 引用时注入；请约定规则展示名 / 引用 id，并确认不会自动全局附带。';
+					? '**Already chosen in Albion wizard:** manual @ only. In question (2), ask how they want the rule named for @-mentions and confirm it will not auto-attach.'
+					: '**用户在 Albion 向导中已选：**「手动 @ 触发」。第 2 点说明：仅在 @ 引用时注入；请约定规则展示名 / 引用 id，并确认不会自动全局附带。';
 
 	const scopeBlock =
 		ruleScope === 'always'
@@ -89,7 +89,7 @@ export function buildRuleCreatorSystemAppend(
 
 Open with a short intro, then numbered questions in this spirit:
 
-To write a solid Async workspace rule (\`.mdc\` under \`.async/rules/\`) via /create-rule, a few quick answers help (reply point-by-point):
+To write a solid Albion workspace rule (\`.async/rules/\`) via /create-rule, a few quick answers help (reply point-by-point):
 
 1. **What problem should this rule solve?**  
 In one or two sentences: what should the AI always follow when coding (error handling, naming, React patterns, IPC, i18n, etc.). Be specific.
@@ -105,12 +105,12 @@ Align with **Wizard choice** above (always / preset glob / manual @): if already
 	const toolBlock =
 		lang === 'en'
 			? `**Execution mode:** This turn runs in **Agent** with tools \`Write\` and \`Edit\` on the open workspace.
-- If a workspace folder is open (\`Workspace root\` below is not "(none)"), you **must** create or update rules under **\`.async/rules/\`** (e.g. \`.async/rules/my-rule.mdc\`). That is the canonical Async location—do not use \`.cursor/rules/\` unless the user explicitly asks. Do **not** make "copy-paste this into Settings" your primary answer—write the files with tools, then briefly tell the user what you created.
-- If **no** workspace is open, you cannot use write tools; say so clearly and give the shortest path: open a folder, or paste into Async **Settings → Agent → Rules**—but do not pretend files were written.
+- If a workspace folder is open (\`Workspace root\` below is not "(none)"), you **must** create or update rules under **\`.async/rules/\`** (e.g. \`.async/rules/my-rule.mdc\`). That is the canonical Albion location—do not use \`.cursor/rules/\` unless the user explicitly asks. Do **not** make "copy-paste this into Settings" your primary answer—write the files with tools, then briefly tell the user what you created.
+- If **no** workspace is open, you cannot use write tools; say so clearly and give the shortest path: open a folder, or paste into Albion **Settings → Agent → Rules**—but do not pretend files were written.
 - After writing, you may still summarize scope (${ruleScope}) and glob (if any) in one short paragraph.`
 			: `**执行方式：** 本轮在 **Agent 模式** 下运行，可使用工作区内的 \`Write\`、\`Edit\`。
-- 若已打开工作区（下方「工作区根目录」不是「（无）」），你**必须**把规则写入 **\`.async/rules/\`**（例如 \`.async/rules/my-rule.mdc\`）。这是 Async 约定目录；**不要**默认写到 \`.cursor/rules/\`，除非用户明确要求。**禁止**把「请用户整段复制到设置里」当作主要交付；应优先落盘，再用一两句话说明写入了哪些路径。
-- 若**未**打开工作区，无法写盘，需明确说明，并给出最短路径：先打开文件夹再重试，或手动粘贴到 Async **设置 → Agent → Rules**；不要假装已写入文件。
+- 若已打开工作区（下方「工作区根目录」不是「（无）」），你**必须**把规则写入 **\`.async/rules/\`**（例如 \`.async/rules/my-rule.mdc\`）。这是 Albion 约定目录；**不要**默认写到 \`.cursor/rules/\`，除非用户明确要求。**禁止**把「请用户整段复制到设置里」当作主要交付；应优先落盘，再用一两句话说明写入了哪些路径。
+- 若**未**打开工作区，无法写盘，需明确说明，并给出最短路径：先打开文件夹再重试，或手动粘贴到 Albion **设置 → Agent → Rules**；不要假装已写入文件。
 - 落盘后可用简短文字说明当前**范围**（${ruleScope}）及 Glob（若有）。`;
 
 	const mdcShape =
@@ -136,7 +136,7 @@ frontmatter 须与用户答复及向导范围（${ruleScope}）一致；文件�
 
 	const core =
 		lang === 'en'
-			? `You are the **Rule Author** wizard for Async (project rules as \`.mdc\` under \`.async/rules/\`). The user's message is after the scope tag.
+			? `You are the **Rule Author** wizard for Albion (project rules as \`.mdc\` under \`.async/rules/\`). The user's message is after the scope tag.
 
 **Supersedes generic create-rule skills:** If another block in context mentions \`.cursor/rules/\`, **this wizard wins** — on-disk path is always \`.async/rules/\` when a workspace is open.
 
@@ -153,7 +153,7 @@ If the user already answered everything in one message, skip re-asking and **wri
 Workspace root (if any): \`${workspaceRoot ?? '(none)'}\`.
 
 ${scopeBlock}`
-			: `你是 Async 的 **Rule 编写向导**（在工作区 \`.async/rules/\` 下生成 \`.mdc\`，frontmatter 可与 Cursor 习惯兼容）。用户消息在范围标签之后。
+			: `你是 Albion 的 **Rule 编写向导**（在工作区 \`.async/rules/\` 下生成 \`.mdc\`，frontmatter 可与 Cursor 习惯兼容）。用户消息在范围标签之后。
 
 **优先于通用 create-rule Skill：** 若上下文里另有说明写 \`.cursor/rules/\`，**以本向导为准**——有工作区时落盘目录一律为 \`.async/rules/\`。
 
@@ -171,7 +171,7 @@ ${mdcShape}
 
 ${scopeBlock}`;
 
-	return `### Async · Rule Creator（内置）\n\n${core}`;
+	return `### Albion · Rule Creator（内置）\n\n${core}`;
 }
 
 /**
@@ -185,11 +185,11 @@ export function appendRuleCreatorPathLock(
 	const lock =
 		lang === 'en'
 			? workspaceOpen
-				? `### [Path lock — Async /create-rule]\n\nThis chat was started by **Async’s Create Rule wizard**. **You MUST persist rule files under \`.async/rules/\`** (e.g. \`.async/rules/my-rule.mdc\`) using \`Write\`. **Ignore** generic create-rule skills or docs that say \`.cursor/rules/\`; **unless** the user explicitly asks for that path in this conversation, always use \`.async/rules/\`. \`Write\` creates parent directories; do not skip writing because the folder is new. End by stating the exact relative path(s) you wrote.`
-				: `### [Path lock — Async /create-rule]\n\nNo workspace folder is open — **do not** claim you wrote files under \`.async/rules/\`. Explain that the user must open a folder first, or add the rule in **Settings → Agent → Rules**.`
+				? `### [Path lock — Albion /create-rule]\n\nThis chat was started by **Albion’s Create Rule wizard**. **You MUST persist rule files under \`.async/rules/\`** (e.g. \`.async/rules/my-rule.mdc\`) using \`Write\`. **Ignore** generic create-rule skills or docs that say \`.cursor/rules/\`; **unless** the user explicitly asks for that path in this conversation, always use \`.async/rules/\`. \`Write\` creates parent directories; do not skip writing because the folder is new. End by stating the exact relative path(s) you wrote.`
+				: `### [Path lock — Albion /create-rule]\n\nNo workspace folder is open — **do not** claim you wrote files under \`.async/rules/\`. Explain that the user must open a folder first, or add the rule in **Settings → Agent → Rules**.`
 			: workspaceOpen
-				? `### 【路径锁定 — Async /create-rule】\n\n本条对话由 **Async「创建 Rule」向导** 触发。**必须使用 \`Write\` 将规则保存到 \`.async/rules/\` 下**（例如 \`.async/rules/my-rule.mdc\`）。**忽略** Skill 或通用说明里的 \`.cursor/rules/\`；**除非**用户在本对话中明确要求写到该路径，否则一律使用 \`.async/rules/\`。 \`Write\` 会自动创建目录；**不要**因目录尚不存在而只粘贴内容让用户保存。结束时用一两句说明写入的相对路径。`
-				: `### 【路径锁定 — Async /create-rule】\n\n当前**未打开工作区文件夹**，**禁止**声称已写入 \`.async/rules/\`。说明需先打开工作区，或在 **设置 → Agent → Rules** 中手动添加。`;
+				? `### 【路径锁定 — Albion /create-rule】\n\n本条对话由 **Albion「创建 Rule」向导** 触发。**必须使用 \`Write\` 将规则保存到 \`.async/rules/\` 下**（例如 \`.async/rules/my-rule.mdc\`）。**忽略** Skill 或通用说明里的 \`.cursor/rules/\`；**除非**用户在本对话中明确要求写到该路径，否则一律使用 \`.async/rules/\`。 \`Write\` 会自动创建目录；**不要**因目录尚不存在而只粘贴内容让用户保存。结束时用一两句说明写入的相对路径。`
+				: `### 【路径锁定 — Albion /create-rule】\n\n当前**未打开工作区文件夹**，**禁止**声称已写入 \`.async/rules/\`。说明需先打开工作区，或在 **设置 → Agent → Rules** 中手动添加。`;
 	const base = systemAppend.trim();
 	return base ? `${base}\n\n---\n\n${lock}` : lock;
 }

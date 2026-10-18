@@ -16,8 +16,8 @@ import {
 } from '../../src/providerIdentitySettings.js';
 import { buildCodexUserAgent } from './codexUserAgent.js';
 
-type OpenAIClientOptions = NonNullable<ConstructorParameters<typeof OpenAI>[0]>;
-type AnthropicClientOptions = NonNullable<ConstructorParameters<typeof Anthropic>[0]>;
+export type OpenAIClientOptions = NonNullable<ConstructorParameters<typeof OpenAI>[0]>;
+export type AnthropicClientOptions = NonNullable<ConstructorParameters<typeof Anthropic>[0]>;
 
 const RUNTIME_PROVIDER_SESSION_ID = randomUUID();
 const DEFAULT_APP_VERSION = '0.0.0';

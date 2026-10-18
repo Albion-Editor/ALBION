@@ -1,6 +1,8 @@
 import { app, BrowserWindow, nativeTheme } from 'electron';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { exec } from 'node:child_process';
+import { saveAlbionToken } from './llm/albionTransport.js';
 import { initWindowsConsoleUtf8 } from './winUtf8.js';
 import { initSettingsStore, getRestorableWorkspace, getSettings, getMcpServerConfigs } from './settingsStore.js';
 import { ensureDefaultThread, flushPendingSave, initThreadStore } from './threadStore.js';
@@ -27,6 +29,142 @@ import {
 } from './browser/googleLoginPolicy.js';
 import { disposePlaywrightBridge } from './browser/playwrightBridge.js';
 
+initWindowsConsoleUtf8();
+
+// Ensure single instance lock for deep linking and single window management
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+	console.log('[startup] Another instance is already running. Quitting second instance.');
+	app.quit();
+}
+
+export function handleAlbionDeepLink(rawUrl: string): void {
+	console.log('[DeepLink] Processing URL:', rawUrl);
+	try {
+		const parsed = new URL(rawUrl);
+		const target = (parsed.hostname + parsed.pathname).toLowerCase();
+		if (target.includes('auth')) {
+			const token = parsed.searchParams.get('token') || parsed.searchParams.get('access_token');
+			const userId = parsed.searchParams.get('userId') || parsed.searchParams.get('user_id');
+			const email = parsed.searchParams.get('email');
+			if (token) {
+				const decodedToken = decodeURIComponent(token);
+				let user = (userId || email) ? { id: userId || 'albion-user', email: email || 'user@albion.dev' } : undefined;
+				if (!user) {
+					try {
+						const parts = decodedToken.split('.');
+						if (parts.length === 3) {
+							const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+							if (payload?.sub || payload?.email) {
+								user = { id: payload.sub || 'albion-user', email: payload.email || 'user@albion.dev' };
+							}
+						}
+					} catch {
+						/* ignore jwt decode error */
+					}
+				}
+				const finalUser = user || { id: 'albion-user', email: 'user@albion.dev' };
+				saveAlbionToken(decodedToken, finalUser);
+				console.log('[DeepLink] Saved session for:', finalUser.email);
+				for (const win of BrowserWindow.getAllWindows()) {
+					if (!win.isDestroyed()) {
+						try {
+							win.webContents.send('albion:auth:state-changed', {
+								isAuthenticated: true,
+								token: decodedToken,
+								user: finalUser,
+							});
+						} catch {
+							/* ignore destroyed window */
+						}
+					}
+				}
+			}
+		}
+	} catch (err) {
+		console.error('[DeepLink] Error handling deep link:', err);
+	}
+}
+
+export function findDeepLinkArg(argv: string[]): string | undefined {
+	for (const raw of argv) {
+		if (typeof raw !== 'string') continue;
+		const clean = raw.trim().replace(/^["']|["']$/g, '');
+		if (clean.startsWith('albion://')) {
+			return clean;
+		}
+	}
+	return undefined;
+}
+
+export function registerAlbionProtocolClient(): void {
+	const protocol = 'albion';
+	try {
+		if (process.defaultApp) {
+			if (process.argv.length >= 2) {
+				app.setAsDefaultProtocolClient(protocol, process.execPath, [path.resolve(process.argv[1])]);
+			}
+		} else {
+			app.setAsDefaultProtocolClient(protocol);
+		}
+		console.log(`[Protocol] Registered default protocol client for '${protocol}://'`);
+	} catch (err) {
+		console.warn('[Protocol] app.setAsDefaultProtocolClient error:', err);
+	}
+
+	if (process.platform === 'win32') {
+		try {
+			const isPackaged = app.isPackaged;
+			let targetCmd: string;
+			if (isPackaged) {
+				targetCmd = `\\"${process.execPath}\\" \\"%1\\"`;
+			} else {
+				const unpackedExe = path.join(app.getAppPath(), 'release', 'win-unpacked', 'Albion.exe');
+				if (existsSync(unpackedExe)) {
+					targetCmd = `\\"${unpackedExe}\\" \\"%1\\"`;
+				} else {
+					targetCmd = `\\"${process.execPath}\\" \\"${path.resolve(app.getAppPath())}\\" \\"%1\\"`;
+				}
+			}
+			const cmd = `reg.exe add "HKCU\\Software\\Classes\\albion" /ve /d "URL:Albion Protocol" /f && reg.exe add "HKCU\\Software\\Classes\\albion" /v "URL Protocol" /t REG_SZ /d "" /f && reg.exe add "HKCU\\Software\\Classes\\albion\\shell\\open\\command" /ve /d "${targetCmd}" /f`;
+			exec(cmd, (err: unknown) => {
+				if (err) {
+					console.warn('[Protocol] Windows registry registration error:', err);
+				} else {
+					console.log('[Protocol] Windows HKCU protocol registry confirmed for:', targetCmd);
+				}
+			});
+		} catch (e) {
+			console.warn('[Protocol] Registry execution error:', e);
+		}
+	}
+}
+
+app.on('second-instance', (_event, argv) => {
+	console.log('[second-instance] Invoked with argv:', argv);
+	const [mainWin] = BrowserWindow.getAllWindows();
+	if (mainWin) {
+		if (mainWin.isMinimized()) mainWin.restore();
+		if (!mainWin.isVisible()) mainWin.show();
+		mainWin.focus();
+	}
+	const deepLinkUrl = findDeepLinkArg(argv);
+	if (deepLinkUrl) {
+		handleAlbionDeepLink(deepLinkUrl);
+	}
+});
+
+app.on('open-url', (event, url) => {
+	event.preventDefault();
+	const [mainWin] = BrowserWindow.getAllWindows();
+	if (mainWin) {
+		if (mainWin.isMinimized()) mainWin.restore();
+		if (!mainWin.isVisible()) mainWin.show();
+		mainWin.focus();
+	}
+	handleAlbionDeepLink(url);
+});
+
 function resolveAppIconPath(): string | undefined {
 	const iconSearchRoots =
 		process.platform === 'darwin'
@@ -52,8 +190,6 @@ function resolveAppIconPath(): string | undefined {
 	}
 	return undefined;
 }
-
-initWindowsConsoleUtf8();
 
 // 必须在 app.whenReady 之前调用 —— Chromium 命令行开关只在初始化前生效。
 applyAiBrowserStartupSwitches();
@@ -205,6 +341,15 @@ app.whenReady().then(() => {
 	if (mainWin) {
 		initAutoUpdate(mainWin);
 		lap('autoUpdate initialized');
+	}
+
+	registerAlbionProtocolClient();
+	lap('protocol client registered');
+
+	const startupDeepLink = findDeepLinkArg(process.argv);
+	if (startupDeepLink) {
+		console.log('[startup] Found startup deep link argument:', startupDeepLink);
+		handleAlbionDeepLink(startupDeepLink);
 	}
 
 	app.on('activate', () => {

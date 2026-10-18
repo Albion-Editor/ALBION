@@ -1,4 +1,4 @@
-﻿import { BrowserWindow, Menu, Tray } from 'electron';
+import { BrowserWindow, Menu, Tray } from 'electron';
 import { checkForUpdates } from './autoUpdate.js';
 import { createAppWindow, focusAppWindow, getAppWindowSurfaceForWebContents } from './appWindow.js';
 
@@ -47,23 +47,23 @@ export function initAppTray(iconPath: string | undefined, quitApp: () => void): 
 		return;
 	}
 	tray = new Tray(iconPath);
-	tray.setToolTip('Async IDE');
+	tray.setToolTip('Albion IDE');
 	tray.setContextMenu(
 		Menu.buildFromTemplate([
 			{
-				label: '打开 Async IDE',
+				label: 'Open Albion IDE',
 				click: () => showMainWindow(),
 			},
 			{
-				label: '新建对话',
+				label: 'New Thread',
 				click: () => sendTrayCommand('newThread'),
 			},
 			{
-				label: '打开设置',
+				label: 'Open Settings',
 				click: () => sendTrayCommand('openSettings'),
 			},
 			{
-				label: '检查更新',
+				label: 'Check for Updates',
 				click: () => {
 					showMainWindow();
 					void checkForUpdates();
@@ -71,7 +71,7 @@ export function initAppTray(iconPath: string | undefined, quitApp: () => void): 
 			},
 			{ type: 'separator' },
 			{
-				label: '退出',
+				label: 'Quit Albion',
 				click: () => quitApp(),
 			},
 		])

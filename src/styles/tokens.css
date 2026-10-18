@@ -20,6 +20,7 @@
 	--color-border-default: var(--void-border);
 	--color-border-subtle: var(--void-border-soft);
 	--color-accent: var(--void-ring);
+	--color-accent-premium: #F59E0B;
 
 	--surface-panel-bg: color-mix(in srgb, var(--color-bg-surface) 82%, transparent);
 	--surface-panel-bg-strong: color-mix(in srgb, var(--color-bg-surface) 92%, transparent);

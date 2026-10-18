@@ -1,4 +1,6 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { TrustBadge } from './TrustBadge';
+import type { TrustVerificationResult } from './ipcTypes';
 import {
 	countDiffAddDel,
 	diffPathToWorkspaceRel,
@@ -53,6 +55,7 @@ type Props = {
 	diff: string;
 	/** 当前工作区根路径，用于把 diff 里的绝对路径转成相对路径 */
 	workspaceRoot?: string | null;
+	verification?: TrustVerificationResult | null;
 	/** 点击标题区：右侧打开文件并滚动到首个 hunk 对应行 */
 	onOpenFile?: (
 		relPath: string,
@@ -62,7 +65,12 @@ type Props = {
 	) => void;
 };
 
-export const AgentDiffCard = memo(function AgentDiffCard({ diff, workspaceRoot, onOpenFile }: Props) {
+export const AgentDiffCard = memo(function AgentDiffCard({
+	diff,
+	workspaceRoot,
+	verification,
+	onOpenFile,
+}: Props) {
 	const rawPath = extractDiffDisplayPath(diff);
 	const rel = diffPathToWorkspaceRel(rawPath, workspaceRoot);
 	const openTarget = (rel || rawPath.replace(/\\/g, '/')).trim();
@@ -125,6 +133,9 @@ export const AgentDiffCard = memo(function AgentDiffCard({ diff, workspaceRoot, 
 				{additions > 0 ? <span className="ref-agent-diff-stat-add">+{additions}</span> : null}
 				{deletions > 0 ? <span className="ref-agent-diff-stat-del">−{deletions}</span> : null}
 				{additions === 0 && deletions === 0 ? <span className="ref-agent-diff-stat-neutral">0</span> : null}
+			</span>
+			<span style={{ marginLeft: 'auto', marginRight: '6px' }}>
+				<TrustBadge verification={verification} />
 			</span>
 		</>
 	);

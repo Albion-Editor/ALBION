@@ -5,6 +5,7 @@ import { MenubarFileMenu } from '../MenubarFileMenu';
 import { MenubarWindowMenu } from '../MenubarWindowMenu';
 import { quickOpenPrimaryShortcutLabel, saveShortcutLabel } from '../quickOpenPalette';
 import { IconChevron, IconSearch, IconSettings } from '../icons';
+import { AlbionAccountMenu } from '../AlbionAccountMenu';
 import type { TFunction } from '../i18n';
 import type { MenubarMenuId } from '../hooks/useMenubarMenuReducer';
 import type { ShellLayoutMode } from './shellLayoutStorage';
@@ -603,15 +604,16 @@ export const AppShellMenubar = memo(function AppShellMenubar({
 				>
 					<IconSettings />
 				</button>
+				<AlbionAccountMenu />
 			</div>
 			<AboutDialog open={aboutOpen} t={t} shell={shell} onClose={() => setAboutOpen(false)} />
 		</header>
 	);
 });
 
-const HELP_DOC_URL = 'https://github.com/ZYKJShadow/Async#readme';
-const HELP_ISSUES_URL = 'https://github.com/ZYKJShadow/Async/issues/new';
-const HELP_RELEASES_URL = 'https://github.com/ZYKJShadow/Async/releases';
+const HELP_DOC_URL = 'https://github.com/albion-dev/albion#readme';
+const HELP_ISSUES_URL = 'https://github.com/albion-dev/albion/issues/new';
+const HELP_RELEASES_URL = 'https://github.com/albion-dev/albion/releases';
 
 type HelpMenuDropdownProps = {
 	t: TFunction;

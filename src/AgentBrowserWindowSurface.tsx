@@ -742,7 +742,7 @@ function browserCaptureBuildJsonExport(
 	return JSON.stringify(
 		{
 			version: 1,
-			source: 'Async browser capture',
+			source: 'Albion browser capture',
 			exportedAt: new Date().toISOString(),
 			requestCount: requests.length,
 			scope,
@@ -759,7 +759,7 @@ function browserCaptureBuildHarExport(requests: BrowserCaptureRequestDetailUi[])
 			log: {
 				version: '1.2',
 				creator: {
-					name: 'Async browser capture',
+					name: 'Albion browser capture',
 					version: '1.0',
 				},
 				pages: [],
@@ -1540,10 +1540,10 @@ const AgentRightSidebarBrowserPanel = memo(function AgentRightSidebarBrowserPane
 					? 'app.browserCaptureCaInstallMachineConfirm'
 					: 'app.browserCaptureCaInstallConfirm';
 			const fallbackMsg = uninstall
-				? 'Remove the Async capture root certificate from the trust store?'
+				? 'Remove the Albion capture root certificate from the trust store?'
 				: scope === 'machine'
-					? 'Install the Async capture root CA system-wide? This requires administrator rights.'
-					: 'Install the Async capture root CA into your user trust store? Windows/macOS will ask you to confirm.';
+					? 'Install the Albion capture root CA system-wide? This requires administrator rights.'
+					: 'Install the Albion capture root CA into your user trust store? Windows/macOS will ask you to confirm.';
 			const message = (() => {
 				const localized = t(confirmKey);
 				return localized && localized !== confirmKey ? localized : fallbackMsg;

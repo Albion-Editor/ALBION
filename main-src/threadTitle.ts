@@ -15,6 +15,7 @@ import {
 import { ensureFreshOAuthAuthForRequest } from './llm/providerOAuthLogin.js';
 import { openAICompatibleEffectiveTemperature } from './llm/thinkingLevel.js';
 import { runCodexOAuthResponseText } from './llm/codexOAuthAdapter.js';
+import { applyAlbionTransport } from './llm/albionTransport.js';
 
 export const THREAD_TITLE_PLACEHOLDER = '???';
 
@@ -190,13 +191,15 @@ export async function generateThreadTitle(
 			const proxyRaw = resolved.proxyUrl?.trim() ?? '';
 			const httpAgent = proxyRaw ? new HttpsProxyAgent(proxyRaw) : undefined;
 			const client = new OpenAI(
-				applyOpenAIProviderIdentity(settings, {
-					apiKey: resolved.apiKey,
-					baseURL: resolved.baseURL,
-					httpAgent,
-					dangerouslyAllowBrowser: false,
-					maxRetries: 0,
-				}, resolved.providerIdentity)
+				applyAlbionTransport(
+					applyOpenAIProviderIdentity(settings, {
+						apiKey: resolved.apiKey,
+						baseURL: resolved.baseURL,
+						httpAgent,
+						dangerouslyAllowBrowser: false,
+						maxRetries: 0,
+					}, resolved.providerIdentity)
+				)
 			);
 			const response = await client.chat.completions.create({
 				model: resolved.requestModelId,
