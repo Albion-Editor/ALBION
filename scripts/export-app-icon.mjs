@@ -59,6 +59,18 @@ await sharp(appIconPng).resize(32, 32).png().toFile(faviconPng);
 console.log('[export-app-icon] wrote', outPng, outIco, 'and', faviconPng);
 
 async function maybeWriteMacIcon(appIconBuffer) {
+	try {
+		const png2icons = (await import('png2icons')).default;
+		const icnsBuffer = png2icons.createICNS(appIconBuffer, png2icons.BILINEAR, 0);
+		if (icnsBuffer) {
+			await writeFile(outIcns, icnsBuffer);
+			console.log('[export-app-icon] wrote', outIcns);
+			return;
+		}
+	} catch (_) {
+		// Fallback to iconutil if darwin
+	}
+
 	if (process.platform !== 'darwin') {
 		return;
 	}
