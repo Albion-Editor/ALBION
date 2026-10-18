@@ -27,7 +27,7 @@ export async function fetchAlbionPricing(): Promise<Record<string, ModelPricingI
 				}
 			}
 
-			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app';
+			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production-a88e.up.railway.app';
 			const res = await fetch(`${proxyUrl}/api/pricing`, {
 				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			});

@@ -115,7 +115,7 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 				}
 
 				try {
-					const res = await fetch('https://albion-backend-production.up.railway.app/auth/poll-token');
+					const res = await fetch('https://albion-backend-production-a88e.up.railway.app/auth/poll-token');
 					if (res.ok) {
 						const json = await res.json();
 						if (json.token) {

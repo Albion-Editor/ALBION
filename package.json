@@ -1,7 +1,10 @@
 {
   "name": "albion-ide",
   "description": "Albion - The AI Code Editor for Africa",
-  "author": "Albion Team",
+  "author": {
+    "name": "Albion Team",
+    "email": "support@albionide.com"
+  },
   "version": "0.0.45",
   "private": true,
   "type": "module",

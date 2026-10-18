@@ -4,7 +4,7 @@
  */
 
 // Production Railway backend URL
-export const ALBION_PRODUCTION_PROXY_URL = 'https://albion-backend-production.up.railway.app';
+export const ALBION_PRODUCTION_PROXY_URL = 'https://albion-backend-production-a88e.up.railway.app';
 
 // Production Website / Auth Redirect URL
 export const ALBION_PRODUCTION_WEBSITE_URL = 'https://albionide.com';

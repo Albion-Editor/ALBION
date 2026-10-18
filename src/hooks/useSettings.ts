@@ -185,7 +185,7 @@ export function useSettings(
 						| undefined;
 					if (auth?.ok && auth.token) token = auth.token;
 				}
-				const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app';
+				const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production-a88e.up.railway.app';
 				const res = await fetch(`${proxyUrl}/api/user/caps`, {
 					headers: token ? { Authorization: `Bearer ${token}` } : {},
 				});

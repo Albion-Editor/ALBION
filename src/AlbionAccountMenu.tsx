@@ -39,7 +39,7 @@ export function AlbionAccountMenu({ onOpenAccountSettings }: AlbionAccountMenuPr
 			}
 
 			// Also fetch user tier from proxy
-			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app';
+			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production-a88e.up.railway.app';
 			const res = await fetch(`${proxyUrl}/api/user/caps`, {
 				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			});

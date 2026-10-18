@@ -188,7 +188,7 @@ export function resolveModelRequest(settings: ShellSettings, selectionId: string
 			maxOutputTokens: 4096,
 			temperatureMode: 'auto',
 			apiKey: 'albion-token',
-			baseURL: `${process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app'}/v1`,
+			baseURL: `${process.env.ALBION_PROXY_URL || 'https://albion-backend-production-a88e.up.railway.app'}/v1`,
 			providerId: 'albion-cloud',
 		};
 	}

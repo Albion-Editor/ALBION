@@ -669,7 +669,7 @@ export function SettingsPage({
 		setCheckoutError(null);
 
 		try {
-			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production.up.railway.app';
+			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production-a88e.up.railway.app';
 			const res = await fetch(`${proxyUrl}/api/checkout/paystack`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },

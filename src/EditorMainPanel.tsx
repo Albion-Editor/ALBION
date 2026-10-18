@@ -158,7 +158,7 @@ export const EditorMainPanel = memo(function EditorMainPanel({
 	const [outputLogs, setOutputLogs] = useState<string[]>([
 		'[Albion Core] Initialized',
 		'[Language Services] TypeScript, HTML, CSS, JSON extensions active',
-		'[Albion Proxy] Connected on https://albion-backend-production.up.railway.app (status: healthy)',
+		'[Albion Proxy] Connected on https://albion-backend-production-a88e.up.railway.app (status: healthy)',
 		'[Workspace] Active workspace ready',
 	]);
 

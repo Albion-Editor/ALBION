@@ -47,7 +47,7 @@ jobs:
       - name: Build Application
         run: npm run build
         env:
-          ALBION_PROXY_URL: https://albion-backend-production.up.railway.app
+          ALBION_PROXY_URL: https://albion-backend-production-a88e.up.railway.app
 
       - name: Package Windows (NSIS & Portable)
         if: runner.os == 'Windows'
