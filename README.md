@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Agent-first desktop workspace — Agent, Editor, Git, Terminal, all in one place.</strong><br/>
-  Own your AI workflow: local-first, BYOK, and fully hackable.
+
 </p>
 
 <p align="center">
