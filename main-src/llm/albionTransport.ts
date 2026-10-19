@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import type { OpenAIClientOptions } from './providerIdentity.js';
 
-export const ALBION_PROXY_BASE_URL = process.env.ALBION_PROXY_URL || 'http://localhost:3000';
+export const ALBION_PROXY_BASE_URL = process.env.ALBION_PROXY_URL || 'https://albion-backend-production-a88e.up.railway.app';
 export const ALBION_CLIENT_HEADER = 'albion-ide';
 
 type AlbionAuthStore = {
@@ -113,12 +113,14 @@ export function applyAlbionTransport(
 	baseOptions: OpenAIClientOptions,
 	forceModel?: string | null
 ): OpenAIClientOptions {
-	const token = getAlbionToken() || '';
+	const userToken = getAlbionToken();
+	// When not logged in, use default token so free-tier chat & agent queries route to proxy seamlessly
+	const effectiveToken = userToken && userToken.trim().length > 0 ? userToken : 'albion-token';
 	const modelToForce = forceModel !== undefined ? forceModel : getAlbionForceModel();
 
 	const albionHeaders: Record<string, string> = {
 		'X-Albion-Client': ALBION_CLIENT_HEADER,
-		Authorization: `Bearer ${token}`,
+		Authorization: `Bearer ${effectiveToken}`,
 	};
 
 	if (modelToForce) {
@@ -130,7 +132,7 @@ export function applyAlbionTransport(
 	return {
 		...baseOptions,
 		baseURL: `${ALBION_PROXY_BASE_URL}/v1`,
-		apiKey: token || 'albion-token-placeholder',
+		apiKey: effectiveToken,
 		defaultHeaders: {
 			...existingHeaders,
 			...albionHeaders,

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAlbionAuth } from './albionAuthStore';
+import { getAlbionProxyUrl } from './albionConfig';
 
 export interface UserCapsResponse {
 	tier: string;
@@ -41,7 +42,7 @@ export function AlbionFuelGauge({ refreshTrigger = 0 }: { refreshTrigger?: numbe
 				}
 			}
 
-			const res = await fetch('http://localhost:3000/api/user/caps', {
+			const res = await fetch(`${getAlbionProxyUrl()}/api/user/caps`, {
 				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			});
 			if (!res.ok) return;
