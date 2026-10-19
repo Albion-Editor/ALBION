@@ -247,8 +247,15 @@ export function createAppWindow(opts?: {
 	if (useViteDevServer) {
 		void win.loadURL(devUrl + urlSuffix);
 	} else {
-		const fileUrl = pathToFileURL(htmlPath).href + urlSuffix;
-		void win.loadURL(fileUrl);
+		const query: Record<string, string> = {};
+		for (const [key, value] of params.entries()) {
+			query[key] = value;
+		}
+		void win.loadFile(htmlPath, { query }).catch((err) => {
+			console.error('[window] win.loadFile failed:', err);
+			const fileUrl = pathToFileURL(htmlPath).href + urlSuffix;
+			void win.loadURL(fileUrl);
+		});
 	}
 	if (openDevTools) {
 		win.webContents.openDevTools({ mode: 'detach' });
