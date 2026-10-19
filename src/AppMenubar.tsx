@@ -237,7 +237,7 @@ export const AppMenubar = memo(function AppMenubar(props: AppMenubarProps) {
 									<span>{t('app.view.toggleSidebar')}</span><kbd className="ref-menu-kbd">Ctrl+B</kbd>
 								</button>
 								<button type="button" role="menuitem" className="ref-menu-dropdown-item ref-menu-dropdown-item--row" disabled={!canToggleTerminal} onClick={() => { toggleTerminalVisibility(); setViewMenuOpen(false); }}>
-									<span>{t('app.view.toggleTerminal')}</span><kbd className="ref-menu-kbd">Ctrl+J</kbd>
+									<span>{t('app.view.toggleTerminal')}</span><kbd className="ref-menu-kbd">Ctrl+`</kbd>
 								</button>
 								<button type="button" role="menuitem" className="ref-menu-dropdown-item ref-menu-dropdown-item--row" disabled={!canToggleDiffPanel} onClick={() => { toggleDiffPanelVisibility(); setViewMenuOpen(false); }}>
 									<span>{t('app.view.toggleDiffPanel')}</span><kbd className="ref-menu-kbd">Alt+Ctrl+B</kbd>

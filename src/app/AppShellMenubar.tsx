@@ -344,7 +344,7 @@ export const AppShellMenubar = memo(function AppShellMenubar({
 									}}
 								>
 									<span>{t('app.view.toggleTerminal')}</span>
-									<kbd className="ref-menu-kbd">Ctrl+J</kbd>
+									<kbd className="ref-menu-kbd">Ctrl+`</kbd>
 								</button>
 								<button
 									type="button"

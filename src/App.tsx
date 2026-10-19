@@ -2943,6 +2943,13 @@ function AppMainWorkspaceInner() {
 				return;
 			}
 			const key = e.key.toLowerCase();
+			if (!e.shiftKey && !e.altKey && (key === '`' || e.code === 'Backquote')) {
+				if (layoutMode === 'editor' && workspace) {
+					e.preventDefault();
+					toggleTerminalVisibility();
+				}
+				return;
+			}
 			const typing = isEditableDomTarget(e.target);
 			if (typing && !['b', 'j', 'f', '[', ']', '-', '=', '+', '0'].includes(key)) {
 				return;
