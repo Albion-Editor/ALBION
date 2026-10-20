@@ -9,14 +9,15 @@ export const RESIZE_HANDLE_PX = 5;
 export const AGENT_RESIZE_HANDLE_PX = 1;
 const LEFT_RAIL_MIN = 200;
 const LEFT_RAIL_MAX = 960;
-const RIGHT_RAIL_MIN = 260;
-const RIGHT_RAIL_MAX = 1280;
+const RIGHT_RAIL_MIN = 340;
 const CENTER_MIN_PX = 320;
 
 export function clampSidebarLayout(left: number, right: number): { left: number; right: number } {
 	const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
 	let l = Math.min(Math.max(left, LEFT_RAIL_MIN), LEFT_RAIL_MAX);
-	let r = Math.min(Math.max(right, RIGHT_RAIL_MIN), RIGHT_RAIL_MAX);
+	// The right rail has no fixed upper bound: it can grow until the center column
+	// hits CENTER_MIN_PX, so the agent chat can claim the whole side of the window.
+	let r = Math.max(right, RIGHT_RAIL_MIN);
 	const maxPair = w - 2 * RESIZE_HANDLE_PX - CENTER_MIN_PX;
 	if (l + r > maxPair) {
 		r = Math.max(RIGHT_RAIL_MIN, maxPair - l);

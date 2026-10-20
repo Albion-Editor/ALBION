@@ -1,9 +1,10 @@
-import { ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import { ipcMain, BrowserWindow, dialog, shell, type WebContents } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { bindWorkspaceRootToWebContents } from '../../workspace.js';
+import { bindWorkspaceRootToWebContents, getWorkspaceRootForWebContents } from '../../workspace.js';
+import { getAppWindowSurfaceForWebContents } from '../../appWindow.js';
 import {
 	ensureWorkspaceFileIndex,
 	searchWorkspaceFiles,
@@ -29,6 +30,45 @@ import { senderWorkspaceRoot } from '../agentRuntime.js';
 const execFileAsync = promisify(execFile);
 
 type ExternalWorkspaceTool = 'vscode' | 'cursor' | 'antigravity' | 'explorer' | 'terminal';
+
+function workspaceRootKey(root: string | null | undefined): string | null {
+	const trimmed = typeof root === 'string' ? root.trim() : '';
+	return trimmed ? path.resolve(trimmed).replace(/\\/g, '/').toLowerCase() : null;
+}
+
+/**
+ * 当一个窗口切换/关闭工作区时，把其它仍停留在旧工作区的 Agent/Editor 布局窗口一起迁到新工作区。
+ * 这样在 IDE 里打开新文件夹后，切回 Agent 布局不会仍显示旧项目。
+ * 仅同步先前根路径相同的窗口，避免影响同时打开的其它项目窗口。
+ */
+function propagateWorkspaceRootToPeerWindows(
+	sender: WebContents,
+	previousRoot: string | null,
+	nextRoot: string | null
+): void {
+	const previousKey = workspaceRootKey(previousRoot);
+	for (const win of BrowserWindow.getAllWindows()) {
+		if (win.isDestroyed() || win.webContents.isDestroyed() || win.webContents.id === sender.id) {
+			continue;
+		}
+		const surface = getAppWindowSurfaceForWebContents(win.webContents);
+		if (surface !== 'agent' && surface !== 'editor') {
+			continue;
+		}
+		const currentRoot = getWorkspaceRootForWebContents(win.webContents);
+		if (workspaceRootKey(currentRoot) !== previousKey) {
+			continue;
+		}
+		bindWorkspaceRootToWebContents(win.webContents, nextRoot);
+		if (currentRoot) {
+			releaseWorkspaceFileIndexRef(currentRoot);
+		}
+		if (nextRoot) {
+			acquireWorkspaceFileIndexRef(nextRoot);
+		}
+		win.webContents.send('async-shell:workspaceChanged', { root: nextRoot });
+	}
+}
 
 function isExternalWorkspaceTool(value: unknown): value is ExternalWorkspaceTool {
 	return (
@@ -238,6 +278,9 @@ export function registerWorkspaceHandlers(): void {
 			acquireWorkspaceFileIndexRef(resolvedPick);
 		}
 		rememberWorkspace(resolvedPick);
+		if (prev !== resolvedPick) {
+			propagateWorkspaceRootToPeerWindows(event.sender, prev, resolvedPick);
+		}
 		return { ok: true as const, path: resolvedPick };
 	});
 
@@ -259,6 +302,9 @@ export function registerWorkspaceHandlers(): void {
 				acquireWorkspaceFileIndexRef(resolved);
 			}
 			rememberWorkspace(resolved);
+			if (prev !== resolved) {
+				propagateWorkspaceRootToPeerWindows(event.sender, prev, resolved);
+			}
 			console.log(`[perf][main] workspace:openPath done in ${(performance.now() - t0).toFixed(1)}ms`);
 			return { ok: true as const, path: resolved };
 		} catch (e) {
@@ -369,6 +415,7 @@ export function registerWorkspaceHandlers(): void {
 		if (root) {
 			releaseWorkspaceFileIndexRef(root);
 			clearGitContextCacheForRoot(root);
+			propagateWorkspaceRootToPeerWindows(event.sender, root, null);
 		}
 		await disposeTsLspSessionForWebContents(event.sender);
 		return { ok: true as const };

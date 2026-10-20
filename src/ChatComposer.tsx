@@ -378,47 +378,26 @@ export function ChatComposer({
 
 	const upgradeNudgeBanner = capExceededModalOpen ? (
 		<div
+			role="status"
 			style={{
 				margin: '0 0 8px 0',
-				padding: '10px 14px',
-				borderRadius: '8px',
+				padding: '12px 14px',
+				borderRadius: '10px',
 				background: 'linear-gradient(135deg, rgba(245, 166, 35, 0.12), rgba(74, 144, 217, 0.12))',
 				border: '1px solid rgba(245, 166, 35, 0.35)',
 				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'space-between',
-				gap: '12px',
+				flexDirection: 'column',
+				gap: '8px',
 				fontSize: '12.5px',
 				color: '#E2E8F0',
 				boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
 			}}
 		>
 			<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-				<span style={{ fontSize: '15px' }}>⚡</span>
-				<span>
-					You&apos;ve reached your daily free limit (50 messages).{' '}
-					<strong>Upgrade to Starter ($8/mo)</strong> for unlimited fast requests, or your limit resets at midnight.
-				</span>
-			</div>
-			<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-				<button
-					type="button"
-					onClick={() => {
-						window.dispatchEvent(new CustomEvent('albion:open-settings', { detail: { nav: 'account' } }));
-					}}
-					style={{
-						padding: '4px 10px',
-						borderRadius: '5px',
-						background: '#F5A623',
-						color: '#0F172A',
-						fontWeight: 600,
-						fontSize: '11.5px',
-						border: 'none',
-						cursor: 'pointer',
-					}}
-				>
-					Upgrade to Starter ($8/mo)
-				</button>
+				<span style={{ fontSize: '15px', lineHeight: 1 }} aria-hidden="true">⚡</span>
+				<strong style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
+					Daily free limit reached
+				</strong>
 				<button
 					type="button"
 					onClick={() => setCapExceededModalOpen(false)}
@@ -428,13 +407,38 @@ export function ChatComposer({
 						color: '#94A3B8',
 						cursor: 'pointer',
 						fontSize: '14px',
-						padding: '2px 6px',
+						lineHeight: 1,
+						padding: '2px 4px',
 					}}
+					aria-label="Dismiss"
 					title="Dismiss"
 				>
 					✕
 				</button>
 			</div>
+			<p style={{ margin: 0, lineHeight: 1.5, color: '#CBD5E1' }}>
+				You&apos;ve used all 50 free messages today. Upgrade to Starter ($8/mo) for unlimited fast requests,
+				or wait until midnight (00:00 UTC) for your limit to reset.
+			</p>
+			<button
+				type="button"
+				onClick={() => {
+					window.dispatchEvent(new CustomEvent('albion:open-settings', { detail: { nav: 'account' } }));
+				}}
+				style={{
+					alignSelf: 'stretch',
+					padding: '7px 12px',
+					borderRadius: '6px',
+					background: '#F5A623',
+					color: '#0F172A',
+					fontWeight: 600,
+					fontSize: '12px',
+					border: 'none',
+					cursor: 'pointer',
+				}}
+			>
+				Upgrade to Starter ($8/mo)
+			</button>
 		</div>
 	) : null;
 
