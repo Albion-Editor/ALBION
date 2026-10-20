@@ -14,6 +14,8 @@ export interface AsyncShellAPI {
 	subscribeWorkspaceFsTouched?(callback: () => void): () => void;
 	/** 瀹搞儰缍旈崠鐑樻瀮娴犲墎鍌ㄥ鏇㈩浕濞嗏€冲弿闁插繑澹傞幓蹇撶暚閹存劧绱欐稉搴＄秼閸撳秶鐛ラ崣?root 濮ｆ柨顕悽杈吂闂冨懏鏌熺€瑰本鍨氶敍?*/
 	subscribeWorkspaceFileIndexReady?(callback: (workspaceRootNorm: string) => void): () => void;
+	/** 其它窗口切换/关闭工作区时通知本窗口同步（root 为 null 表示已关闭）。 */
+	subscribeWorkspaceChanged?(callback: (payload: { root: string | null }) => void): () => void;
 	/** 瀹告彃鐣ㄧ憗鍛絻娴犺泛褰夐崠鏍电礄鐎瑰顥婇妴浣稿祻鏉炲鈧礁鎯庨崑婧库偓浣稿瀼閹广垺褰冩禒鍓佹窗瑜版洩绱?*/
 	subscribePluginsChanged?(callback: () => void): () => void;
 	/** PTY 缂佸牏顏潏鎾冲毉閿涘牊瀵?session id 閸栧搫鍨庨敍?*/

@@ -2375,6 +2375,22 @@ function AppMainWorkspaceInner() {
 		setTerminalMenuOpen,
 	});
 
+	// 其它布局窗口（Agent / IDE）切换工作区时同步本窗口，避免两个布局显示不同项目。
+	useEffect(() => {
+		const subscribe = shell?.subscribeWorkspaceChanged;
+		if (!subscribe) {
+			return;
+		}
+		return subscribe((payload) => {
+			const root = typeof payload?.root === 'string' ? payload.root.trim() : '';
+			if (root) {
+				void applyWorkspacePath(root);
+			} else {
+				void closeWorkspaceFolder();
+			}
+		});
+	}, [shell, applyWorkspacePath, closeWorkspaceFolder]);
+
 	const openAgentSidebarFilePreview = useAgentSidebarFilePreview({
 		shell,
 		layoutMode,

@@ -3,7 +3,8 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import type { OpenAIClientOptions } from './providerIdentity.js';
 
-export const ALBION_PROXY_BASE_URL = process.env.ALBION_PROXY_URL || 'http://localhost:3000';
+export const ALBION_PROXY_BASE_URL =
+	process.env.ALBION_PROXY_URL?.trim() || 'https://albion-backend-production-a88e.up.railway.app';
 export const ALBION_CLIENT_HEADER = 'albion-ide';
 
 type AlbionAuthStore = {

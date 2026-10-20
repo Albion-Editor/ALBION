@@ -251,6 +251,9 @@ let workspaceFsTouchedSeq = 0;
 const workspaceFileIndexReadyHandlers = new Map();
 let workspaceFileIndexReadySeq = 0;
 
+const workspaceChangedHandlers = new Map();
+let workspaceChangedSeq = 0;
+
 const pluginsChangedHandlers = new Map();
 let pluginsChangedSeq = 0;
 
@@ -311,6 +314,16 @@ ipcRenderer.on('async-shell:workspaceFileIndexReady', (_event, rootNorm) => {
 	for (const fn of workspaceFileIndexReadyHandlers.values()) {
 		try {
 			fn(String(rootNorm ?? ''));
+		} catch (e) {
+			console.error(e);
+		}
+	}
+});
+
+ipcRenderer.on('async-shell:workspaceChanged', (_event, payload) => {
+	for (const fn of workspaceChangedHandlers.values()) {
+		try {
+			fn(payload);
 		} catch (e) {
 			console.error(e);
 		}
@@ -492,6 +505,11 @@ contextBridge.exposeInMainWorld('asyncShell', {
 		const id = ++workspaceFileIndexReadySeq;
 		workspaceFileIndexReadyHandlers.set(id, callback);
 		return () => workspaceFileIndexReadyHandlers.delete(id);
+	},
+	subscribeWorkspaceChanged(callback) {
+		const id = ++workspaceChangedSeq;
+		workspaceChangedHandlers.set(id, callback);
+		return () => workspaceChangedHandlers.delete(id);
 	},
 	subscribePluginsChanged(callback) {
 		const id = ++pluginsChangedSeq;

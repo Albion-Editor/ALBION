@@ -146,6 +146,7 @@ vi.mock('../appWindow.js', () => {
 		createAppWindow: vi.fn(() => fakeWindow),
 		findAppWindowBySurface: vi.fn(() => null),
 		focusAppWindow: vi.fn(),
+		getAppWindowSurfaceForWebContents: vi.fn(() => null),
 	};
 });
 

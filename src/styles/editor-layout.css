@@ -2131,6 +2131,8 @@
 	align-items: center;
 	gap: 8px;
 	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 	box-sizing: border-box;
 }
 
@@ -2138,7 +2140,22 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	flex-shrink: 0;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+/* Truncate the model pill instead of letting it spill out of the rail when the panel is narrow. */
+.ref-capsule-bar--editor-rail .ref-model-pill-anchor,
+.ref-capsule-bar--editor-rail .ref-model-pill {
+	min-width: 0;
+}
+
+.ref-capsule-bar--editor-rail .ref-model-name {
+	display: block;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .ref-editor-rail-mode-cluster {
@@ -2231,6 +2248,29 @@
 	margin-right: auto;
 	margin-bottom: 16px;
 	box-sizing: border-box;
+}
+
+/*
+ * Editor chat rail uses the whole rail width, matching Antigravity's side panel.
+ * The center agent layout keeps its 720px column; only the right rail stretches.
+ */
+.ref-right--editor-chat .ref-msg-slot,
+.ref-right--editor-chat .ref-msg-slot--composer,
+.ref-right--editor-chat .ref-msg-slot--sub-agents,
+.ref-right--editor-chat .ref-msg-sticky-user-wrap,
+.ref-right--editor-chat .ref-thought-block,
+.ref-right--editor-chat .ref-bubble-wrap--user .ref-bubble,
+.ref-right--editor-chat .ref-agent-stream-tool,
+.ref-right--editor-chat .ref-agent-review,
+.ref-right--editor-chat .ref-command-stack {
+	width: 100%;
+	max-width: none;
+}
+
+.ref-right--editor-chat .ref-plan-q,
+.ref-right--editor-chat .ref-skill-scope,
+.ref-right--editor-chat .ref-plan-review {
+	max-width: none;
 }
 
 /* Editor ???????????????????????????? */

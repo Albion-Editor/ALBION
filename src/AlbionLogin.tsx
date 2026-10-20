@@ -87,7 +87,7 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 				provider,
 				options: {
 					skipBrowserRedirect: true,
-					redirectTo: 'https://albionide.com/auth/callback'
+					redirectTo: 'https://albion-backend-production-a88e.up.railway.app/auth/callback'
 				}
 			});
 
