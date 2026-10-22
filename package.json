@@ -5,7 +5,7 @@
     "name": "Albion Team",
     "email": "support@albionide.com"
   },
-  "version": "0.0.45",
+  "version": "0.0.47",
   "private": true,
   "type": "module",
   "main": "electron/main.bundle.cjs",
