@@ -14,6 +14,9 @@ import { ComposerModeIcon, composerModeLabel, type ComposerMode } from './Compos
 import { ComposerRichInput } from './ComposerRichInput';
 import { type ComposerSegment, type PersistedComposerAttachment } from './composerSegments';
 import { fetchAlbionPricing, getCachedAlbionPricing, type ModelPricingItem } from './albionPricing';
+import { AlbionCostRadar } from './AlbionCostRadar';
+import { refreshAlbionCaps, useAlbionCaps } from './albionCapsStore';
+import { formatTokens, getLifetimeStatus } from './albionFreeTier';
 import { useI18n } from './i18n';
 import { useAlbionAuth } from './albionAuthStore';
 import {
@@ -156,6 +159,7 @@ export function ChatComposer({
 	useEffect(() => {
 		const handleCapExceeded = () => {
 			setCapExceededModalOpen(true);
+			void refreshAlbionCaps();
 		};
 		window.addEventListener('albion:cap-exceeded', handleCapExceeded);
 		return () => {
@@ -169,6 +173,13 @@ export function ChatComposer({
 	const sendTitle = awaitingReply ? t('app.stopGeneration') : t('app.send');
 
 	const onComposerKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+		if (lifetimeLocked) {
+			if (e.key === 'Enter' && !e.shiftKey) {
+				e.preventDefault();
+				window.dispatchEvent(new CustomEvent('albion:open-settings', { detail: { nav: 'account' } }));
+			}
+			return;
+		}
 		if (skillInvokeKeyDown(e)) return;
 		if (slashCommandKeyDown(e)) return;
 		if (atMentionKeyDown(e)) return;
@@ -198,11 +209,14 @@ export function ChatComposer({
 	}, [segments]);
 
 	const albionAuth = useAlbionAuth();
-	const userTier = (albionAuth.user?.tier || 'free').toLowerCase();
+	const caps = useAlbionCaps();
+	const userTier = (albionAuth.user?.tier || caps.data?.tier || 'free').toLowerCase();
 	const isFreeTier = userTier === 'free';
+	const lifetime = getLifetimeStatus(caps.data);
+	const lifetimeLocked = isFreeTier && lifetime.locked;
 
 	const predictedModel = isFreeTier
-		? 'openrouter-free'
+		? 'deepseek-v4-flash'
 		: hasImageAttached
 			? 'qwen3.6-35b-a3b'
 			: 'deepseek-v4-flash';
@@ -234,7 +248,7 @@ export function ChatComposer({
 	}, []);
 
 	const modelPricing = pricingMap?.[predictedModel];
-	const costPer1k = modelPricing?.cost_per_1k ?? (predictedModel === 'qwen3.6-35b-a3b' ? 0.00025 : 0.00014);
+	const costPer1k = modelPricing?.cost_per_1k ?? (predictedModel === 'qwen3.6-35b-a3b' ? 0.00025 : 0.000156);
 	const calculatedCost = isFreeTier ? 0 : (estimatedTokens / 1000) * costPer1k;
 	const priceFormatted = calculatedCost === 0 ? '$0.00' : `$${calculatedCost.toFixed(4)}`;
 
@@ -250,35 +264,21 @@ export function ChatComposer({
 				.filter(Boolean)
 				.join(' ')}
 		>
-			<div
-				className="ref-cost-radar"
-				data-testid="cost-radar"
-				style={{
-					fontSize: '11px',
-					lineHeight: '16px',
-					color: 'var(--text-subtle, rgba(255, 255, 255, 0.45))',
-					padding: '6px 12px 2px 12px',
-					userSelect: 'none',
-					whiteSpace: 'nowrap',
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					letterSpacing: '0.01em',
-				}}
-			>
-				{isFreeTier ? (
-					<>Auto: {predictedModel} · Free Tier ($0.00) · ≈ {estimatedTokens.toLocaleString()} tokens (Unlimited)</>
-				) : (
-					<>Auto: {predictedModel} · ≈ {estimatedTokens.toLocaleString()} tokens · {priceFormatted}</>
-				)}
-			</div>
+			<AlbionCostRadar
+				predictedModel={predictedModel}
+				estimatedTokens={estimatedTokens}
+				isFreeTier={isFreeTier}
+				priceFormatted={priceFormatted}
+			/>
 			<div className={isHero ? 'ref-composer-hero-body' : 'ref-composer-stacked-body'}>
-				<ComposerRichInput
-					innerRef={richRef}
-					segments={segments}
-					onSegmentsChange={setSegments}
-					className={isHero ? 'ref-capsule-input' : 'ref-capsule-input ref-capsule-input--stacked-chat'}
-					placeholder={inputPlaceholder}
-					onFilePreview={(rel) => onExplorerOpenFileFn(rel)}
+					<ComposerRichInput
+						innerRef={richRef}
+						segments={segments}
+						onSegmentsChange={setSegments}
+						className={isHero ? 'ref-capsule-input' : 'ref-capsule-input ref-capsule-input--stacked-chat'}
+						placeholder={lifetimeLocked ? 'Free tier limit reached — upgrade to continue' : inputPlaceholder}
+						disabled={lifetimeLocked}
+						onFilePreview={(rel) => onExplorerOpenFileFn(rel)}
 					onComposerAttachFiles={persistComposerAttachments}
 					onRichInput={(root) => syncComposerOverlays(root, slot)}
 					onRichSelect={(root) => syncComposerOverlays(root, slot)}
@@ -361,16 +361,31 @@ export function ChatComposer({
 							<IconImageOutline className="ref-mic-btn-svg" />
 						</button>
 					) : null}
-					<button
-						type="button"
-						className={`ref-send-btn ${awaitingReply ? 'is-stop' : ''}`}
-						title={sendTitle}
-						aria-label={sendTitle}
-						disabled={!awaitingReply && !canSend && !hasContent}
-						onClick={() => (awaitingReply ? onAbortFn() : onSendFn())}
-					>
-						{awaitingReply ? <IconStop className="ref-send-icon" /> : <IconArrowUp className="ref-send-icon" />}
-					</button>
+					{lifetimeLocked ? (
+						<button
+							type="button"
+							className="ref-send-btn is-locked"
+							title="Free tier lifetime limit reached — upgrade to continue"
+							aria-label="Upgrade required"
+							onClick={() =>
+								window.dispatchEvent(new CustomEvent('albion:open-settings', { detail: { nav: 'account' } }))
+							}
+							style={{ width: 'auto', padding: '0 10px', fontSize: '11px', fontWeight: 700 }}
+						>
+							Upgrade Required
+						</button>
+					) : (
+						<button
+							type="button"
+							className={`ref-send-btn ${awaitingReply ? 'is-stop' : ''}`}
+							title={sendTitle}
+							aria-label={sendTitle}
+							disabled={!awaitingReply && !canSend && !hasContent}
+							onClick={() => (awaitingReply ? onAbortFn() : onSendFn())}
+						>
+							{awaitingReply ? <IconStop className="ref-send-icon" /> : <IconArrowUp className="ref-send-icon" />}
+						</button>
+					)}
 				</div>
 			</div>
 		</div>
@@ -396,7 +411,7 @@ export function ChatComposer({
 			<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 				<span style={{ fontSize: '15px', lineHeight: 1 }} aria-hidden="true">⚡</span>
 				<strong style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-					Daily free limit reached
+					Free tier lifetime limit reached
 				</strong>
 				<button
 					type="button"
@@ -417,8 +432,8 @@ export function ChatComposer({
 				</button>
 			</div>
 			<p style={{ margin: 0, lineHeight: 1.5, color: '#CBD5E1' }}>
-				You&apos;ve used all 50 free messages today. Upgrade to Starter ($8/mo) for unlimited fast requests,
-				or wait until midnight (00:00 UTC) for your limit to reset.
+				You&apos;ve used {formatTokens(lifetime.used)} of your {formatTokens(lifetime.cap)} lifetime free
+				tokens. This allowance never resets. Upgrade to keep using Albion AI.
 			</p>
 			<button
 				type="button"
@@ -437,7 +452,7 @@ export function ChatComposer({
 					cursor: 'pointer',
 				}}
 			>
-				Upgrade to Starter ($8/mo)
+				Upgrade to continue
 			</button>
 		</div>
 	) : null;

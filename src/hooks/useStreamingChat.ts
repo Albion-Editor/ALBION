@@ -922,8 +922,9 @@ export function useStreamingChatSubscription(runtime: StreamingSubscriptionRunti
 					rt.setPlanQuestionRequestId(null);
 					rt.clearStreamingToolPreviewNow();
 					const isCapExceeded =
-						payload.message.includes('daily free limit') ||
-						payload.message.includes('50 messages') ||
+						payload.message.includes('Free tier lifetime limit reached') ||
+						payload.message.includes('free_tier_lifetime_limit_reached') ||
+						payload.message.includes('lifetime free') ||
 						payload.message.includes('X-Albion-Cap-Exceeded') ||
 						payload.message.includes('cap_exceeded');
 
@@ -932,7 +933,7 @@ export function useStreamingChatSubscription(runtime: StreamingSubscriptionRunti
 					}
 
 					const errorLine = isCapExceeded
-						? "⚡ **Daily Free Limit Reached (50 messages)**\n\nYou've reached your daily free limit (50 messages). Upgrade to Starter ($8/mo) for unlimited fast requests, or your limit resets at midnight (00:00 UTC)."
+						? "⚡ **Free Tier Lifetime Limit Reached (200,000 tokens)**\n\nYou've used your entire lifetime free allowance. This limit never resets. Upgrade to continue using Albion AI."
 						: rt.t('app.errorPrefix', {
 								message: translateChatError(payload.message, rt.t),
 						  });
