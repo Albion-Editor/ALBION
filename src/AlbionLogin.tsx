@@ -14,11 +14,6 @@ interface AlbionLoginProps {
 }
 
 export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
-	const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-	const [email, setEmail] = useState('');
-	const [password, setPassword] = useState('');
-	const [confirmPassword, setConfirmPassword] = useState('');
-	const [loading, setLoading] = useState(false);
 	const [oauthLoading, setOauthLoading] = useState<'github' | 'google' | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -147,88 +142,6 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 		}
 	};
 
-	// Email/Password Submit Handler
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setError(null);
-		setSuccessMsg(null);
-
-		const cleanEmail = email.trim();
-		if (!cleanEmail || !password) {
-			setError('Please enter your email and password.');
-			return;
-		}
-
-		if (mode === 'signup') {
-			if (password.length < 6) {
-				setError('Password must be at least 6 characters long.');
-				return;
-			}
-			if (password !== confirmPassword) {
-				setError('Passwords do not match.');
-				return;
-			}
-
-			setLoading(true);
-			try {
-				const { data, error: signUpError } = await supabaseClient.auth.signUp({
-					email: cleanEmail,
-					password,
-				});
-
-				if (signUpError) {
-					setError(signUpError.message);
-					setLoading(false);
-					return;
-				}
-
-				if (data.session) {
-					// Instant session created
-					finishAuth(data.session.access_token, {
-						id: data.user?.id || 'new-user',
-						email: data.user?.email || cleanEmail
-					});
-				} else {
-					// Email confirmation required or created
-					setSuccessMsg('Account created successfully! If email verification is enabled, check your inbox, then sign in.');
-					setMode('signin');
-					setPassword('');
-					setConfirmPassword('');
-				}
-			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : 'Sign-up failed';
-				setError(message);
-			} finally {
-				setLoading(false);
-			}
-		} else {
-			// Sign In
-			setLoading(true);
-			try {
-				const { data, error: authError } = await supabaseClient.auth.signInWithPassword({
-					email: cleanEmail,
-					password,
-				});
-
-				if (authError || !data.session) {
-					setError(authError?.message || 'Login failed. Please check your credentials.');
-					setLoading(false);
-					return;
-				}
-
-				finishAuth(data.session.access_token, {
-					id: data.user.id,
-					email: data.user.email
-				});
-			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : 'Unexpected login error';
-				setError(message);
-			} finally {
-				setLoading(false);
-			}
-		}
-	};
-
 	return (
 		<div style={{
 			display: 'flex',
@@ -260,7 +173,7 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 						Albion
 					</h1>
 					<p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-						{mode === 'signup' ? 'Create your Albion developer account' : 'The AI-Native IDE for High-Speed Builders'}
+						The AI-Native IDE for High-Speed Builders
 					</p>
 				</div>
 
@@ -269,7 +182,7 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 					<button
 						type="button"
 						onClick={() => handleOAuth('github')}
-						disabled={loading || oauthLoading !== null}
+						disabled={oauthLoading !== null}
 						style={{
 							display: 'flex',
 							alignItems: 'center',
@@ -293,11 +206,10 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 						{oauthLoading === 'github' ? 'Connecting to GitHub...' : 'Continue with GitHub'}
 					</button>
 
-					{/* Google OAuth - temporarily hidden for launch (email/pw + GitHub only); uncomment to re-enable
 					<button
 						type="button"
 						onClick={() => handleOAuth('google')}
-						disabled={loading || oauthLoading !== null}
+						disabled={oauthLoading !== null}
 						style={{
 							display: 'flex',
 							alignItems: 'center',
@@ -322,63 +234,6 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 							<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
 						</svg>
 						{oauthLoading === 'google' ? 'Connecting to Google...' : 'Continue with Google'}
-					</button>
-					*/}
-				</div>
-
-				{/* Divider */}
-				<div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
-					<div style={{ flex: 1, height: '1px', backgroundColor: '#334155' }} />
-					<span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-						or with email
-					</span>
-					<div style={{ flex: 1, height: '1px', backgroundColor: '#334155' }} />
-				</div>
-
-				{/* Tab Selector: Sign In vs Sign Up */}
-				<div style={{
-					display: 'flex',
-					padding: '3px',
-					backgroundColor: '#0f172a',
-					borderRadius: '8px',
-					marginBottom: '20px',
-					border: '1px solid #334155'
-				}}>
-					<button
-						type="button"
-						onClick={() => { setMode('signin'); setError(null); setSuccessMsg(null); }}
-						style={{
-							flex: 1,
-							padding: '8px 0',
-							borderRadius: '6px',
-							border: 'none',
-							backgroundColor: mode === 'signin' ? '#3b82f6' : 'transparent',
-							color: mode === 'signin' ? '#ffffff' : '#94a3b8',
-							fontSize: '12px',
-							fontWeight: 600,
-							cursor: 'pointer',
-							transition: 'all 0.15s ease'
-						}}
-					>
-						Sign In
-					</button>
-					<button
-						type="button"
-						onClick={() => { setMode('signup'); setError(null); setSuccessMsg(null); }}
-						style={{
-							flex: 1,
-							padding: '8px 0',
-							borderRadius: '6px',
-							border: 'none',
-							backgroundColor: mode === 'signup' ? '#3b82f6' : 'transparent',
-							color: mode === 'signup' ? '#ffffff' : '#94a3b8',
-							fontSize: '12px',
-							fontWeight: 600,
-							cursor: 'pointer',
-							transition: 'all 0.15s ease'
-						}}
-					>
-						Create Account
 					</button>
 				</div>
 
@@ -413,132 +268,11 @@ export const AlbionLogin: React.FC<AlbionLoginProps> = ({ onLoginSuccess }) => {
 					</div>
 				)}
 
-				{/* Form */}
-				<form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-					<div>
-						<label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#cbd5e1', marginBottom: '6px' }}>
-							Email address
-						</label>
-						<input
-							type="email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							placeholder="you@domain.com"
-							disabled={loading || oauthLoading !== null}
-							required
-							style={{
-								width: '100%',
-								padding: '10px 12px',
-								borderRadius: '8px',
-								backgroundColor: '#0f172a',
-								border: '1px solid #475569',
-								color: '#f8fafc',
-								fontSize: '13px',
-								outline: 'none',
-								boxSizing: 'border-box'
-							}}
-						/>
-					</div>
-
-					<div>
-						<label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#cbd5e1', marginBottom: '6px' }}>
-							Password
-						</label>
-						<input
-							type="password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							placeholder="••••••••"
-							disabled={loading || oauthLoading !== null}
-							required
-							style={{
-								width: '100%',
-								padding: '10px 12px',
-								borderRadius: '8px',
-								backgroundColor: '#0f172a',
-								border: '1px solid #475569',
-								color: '#f8fafc',
-								fontSize: '13px',
-								outline: 'none',
-								boxSizing: 'border-box'
-							}}
-						/>
-					</div>
-
-					{mode === 'signup' && (
-						<div>
-							<label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#cbd5e1', marginBottom: '6px' }}>
-								Confirm Password
-							</label>
-							<input
-								type="password"
-								value={confirmPassword}
-								onChange={(e) => setConfirmPassword(e.target.value)}
-								placeholder="••••••••"
-								disabled={loading || oauthLoading !== null}
-								required
-								style={{
-									width: '100%',
-									padding: '10px 12px',
-									borderRadius: '8px',
-									backgroundColor: '#0f172a',
-									border: '1px solid #475569',
-									color: '#f8fafc',
-									fontSize: '13px',
-									outline: 'none',
-									boxSizing: 'border-box'
-								}}
-							/>
-						</div>
-					)}
-
-					<button
-						type="submit"
-						disabled={loading || oauthLoading !== null}
-						style={{
-							marginTop: '6px',
-							padding: '11px 16px',
-							borderRadius: '8px',
-							backgroundColor: '#3b82f6',
-							color: '#ffffff',
-							fontSize: '13px',
-							fontWeight: 600,
-							border: 'none',
-							cursor: (loading || oauthLoading) ? 'not-allowed' : 'pointer',
-							opacity: (loading || oauthLoading) ? 0.7 : 1,
-							boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
-							transition: 'all 0.15s ease'
-						}}
-					>
-						{loading
-							? (mode === 'signup' ? 'Creating Account...' : 'Signing in...')
-							: (mode === 'signup' ? 'Create Account' : 'Sign In')}
-					</button>
-				</form>
-
-				{/* Mode Switch Footer */}
+				{/* Provider Footer */}
 				<div style={{ textAlign: 'center', marginTop: '20px' }}>
-					{mode === 'signin' ? (
-						<p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
-							Don't have an account?{' '}
-							<span
-								onClick={() => { setMode('signup'); setError(null); setSuccessMsg(null); }}
-								style={{ color: '#3b82f6', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
-							>
-								Create one here
-							</span>
-						</p>
-					) : (
-						<p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
-							Already have an account?{' '}
-							<span
-								onClick={() => { setMode('signin'); setError(null); setSuccessMsg(null); }}
-								style={{ color: '#3b82f6', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
-							>
-								Sign in here
-							</span>
-						</p>
-					)}
+					<p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+						Sign in securely with GitHub or Google to get started.
+					</p>
 				</div>
 			</div>
 		</div>
