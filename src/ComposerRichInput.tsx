@@ -34,6 +34,7 @@ type Props = {
 	onRichSelect: (root: HTMLElement) => void;
 	onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
 	onInputHeight?: (el: HTMLDivElement) => void;
+	disabled?: boolean;
 	innerRef: React.RefObject<HTMLDivElement | null>;
 };
 
@@ -48,6 +49,7 @@ export function ComposerRichInput({
 	onRichSelect,
 	onKeyDown,
 	onInputHeight,
+	disabled = false,
 	innerRef,
 }: Props) {
 	const focusedRef = useRef(false);
@@ -187,6 +189,9 @@ export function ComposerRichInput({
 	]);
 
 	const handleInput = () => {
+		if (disabled) {
+			return;
+		}
 		emitFromDom();
 		const el = innerRef.current;
 		if (el) {
@@ -198,6 +203,9 @@ export function ComposerRichInput({
 	};
 
 	const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+		if (disabled) {
+			return;
+		}
 		const list = e.clipboardData?.files;
 		if (!list?.length || !onComposerAttachFiles) {
 			return;
@@ -211,7 +219,7 @@ export function ComposerRichInput({
 	};
 
 	const onDragEnter = (e: React.DragEvent) => {
-		if (!onComposerAttachFiles || !dataTransferHasFiles(e.dataTransfer)) {
+		if (disabled || !onComposerAttachFiles || !dataTransferHasFiles(e.dataTransfer)) {
 			return;
 		}
 		e.preventDefault();
@@ -221,7 +229,7 @@ export function ComposerRichInput({
 	};
 
 	const onDragLeave = (e: React.DragEvent) => {
-		if (!onComposerAttachFiles) {
+		if (disabled || !onComposerAttachFiles) {
 			return;
 		}
 		e.preventDefault();
@@ -233,7 +241,7 @@ export function ComposerRichInput({
 	};
 
 	const onDragOver = (e: React.DragEvent) => {
-		if (!onComposerAttachFiles || !dataTransferHasFiles(e.dataTransfer)) {
+		if (disabled || !onComposerAttachFiles || !dataTransferHasFiles(e.dataTransfer)) {
 			return;
 		}
 		e.preventDefault();
@@ -242,6 +250,9 @@ export function ComposerRichInput({
 	};
 
 	const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+		if (disabled) {
+			return;
+		}
 		e.preventDefault();
 		e.stopPropagation();
 		dragDepthRef.current = 0;
@@ -268,10 +279,12 @@ export function ComposerRichInput({
 				className={['ref-composer-rich-input', showPlaceholder ? 'ref-composer-rich-input--ph' : '', className]
 					.filter(Boolean)
 					.join(' ')}
-				contentEditable
+				contentEditable={!disabled}
 				suppressContentEditableWarning
 				role="textbox"
 				aria-multiline="true"
+				aria-disabled={disabled}
+				style={disabled ? { opacity: 0.65, cursor: 'not-allowed' } : undefined}
 				aria-placeholder={placeholder?.trim() ? placeholder : undefined}
 				data-placeholder={placeholder || ''}
 				onFocus={() => {
@@ -320,7 +333,7 @@ export function ComposerRichInput({
 						onRichSelect(el);
 					}
 				}}
-				onKeyDown={onKeyDown}
+				onKeyDown={disabled ? (e) => e.preventDefault() : onKeyDown}
 			/>
 		</div>
 	);

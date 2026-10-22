@@ -1,90 +1,43 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useAlbionAuth } from './albionAuthStore';
-import { getAlbionProxyUrl } from './albionConfig';
+import { refreshAlbionCaps, setAlbionCapsToken, useAlbionCaps } from './albionCapsStore';
+import { formatNgn, formatTokens, formatUsd, getLifetimeStatus } from './albionFreeTier';
 
-export interface UserCapsResponse {
-	tier: string;
-	caps?: Record<string, { used: number; limit: number }>;
-	models?: Record<string, { used: number; limit: number }>;
-	daily_requests?: number;
-	daily_tokens?: number;
-	limit_requests?: number;
-	limit_tokens?: number;
-	cap_exceeded?: boolean;
-}
-
-function formatTokens(n: number): string {
-	if (n <= 0) return '0';
-	if (n >= 1000000) {
-		const f = (n / 1000000).toFixed(1);
-		return f.endsWith('.0') ? `${Math.floor(n / 1000000)}M` : `${f}M`;
-	}
-	if (n >= 1000) {
-		return `${Math.round(n / 1000)}k`;
-	}
-	return String(n);
-}
+export type { UserCapsResponse } from './albionFreeTier';
 
 export function AlbionFuelGauge({ refreshTrigger = 0 }: { refreshTrigger?: number }) {
 	const auth = useAlbionAuth();
-	const [capsData, setCapsData] = useState<UserCapsResponse | null>(null);
+	const caps = useAlbionCaps();
 	const [activeModel, setActiveModel] = useState<string>('');
+	const tier = (auth.user?.tier || caps.data?.tier || 'free').toLowerCase();
+	const isFree = tier === 'free';
+	const lifetime = getLifetimeStatus(caps.data);
 
-	const fetchCaps = useCallback(async () => {
-		try {
-			let token = auth.token || '';
-			if (!token && typeof window !== 'undefined' && window.asyncShell?.invoke) {
-				const res = (await window.asyncShell.invoke('albion:auth:get')) as
-					| { ok?: boolean; token?: string }
-					| undefined;
-				if (res?.ok && res.token) {
-					token = res.token;
-				}
-			}
-
-			const res = await fetch(`${getAlbionProxyUrl()}/api/user/caps`, {
-				headers: token ? { Authorization: `Bearer ${token}` } : {},
-			});
-			if (!res.ok) return;
-			const data = (await res.json()) as UserCapsResponse;
-			setCapsData(data);
-		} catch {
-			/* ignore fetch errors */
-		}
+	useEffect(() => {
+		setAlbionCapsToken(auth.token || null);
 	}, [auth.token]);
 
-	// Initial fetch & 60s polling
 	useEffect(() => {
-		void fetchCaps();
+		void refreshAlbionCaps();
 		const interval = setInterval(() => {
-			void fetchCaps();
+			void refreshAlbionCaps();
 		}, 60000);
 		return () => clearInterval(interval);
-	}, [fetchCaps]);
+	}, []);
 
-	// Refresh after assistant message completes
 	useEffect(() => {
 		if (refreshTrigger > 0) {
-			void fetchCaps();
+			void refreshAlbionCaps();
 		}
-	}, [refreshTrigger, fetchCaps]);
+	}, [refreshTrigger]);
 
-	// Listen for global custom events
 	useEffect(() => {
-		const refreshHandler = () => void fetchCaps();
+		const refreshHandler = () => void refreshAlbionCaps();
 		const modelRoutedHandler = (e: Event) => {
 			const custom = e as CustomEvent<{ model?: string; provider?: string }>;
 			if (custom.detail?.model) {
 				const m = custom.detail.model;
-				const formatted =
-					m === 'groq-free'
-						? 'Auto: groq-llama'
-						: m === 'openrouter-free'
-							? 'Auto: openrouter-free'
-							: m.startsWith('Auto')
-								? m
-								: `Auto: ${m}`;
-				setActiveModel(formatted);
+				setActiveModel(m.startsWith('Auto') ? m : `Auto: ${m}`);
 			}
 		};
 
@@ -95,37 +48,21 @@ export function AlbionFuelGauge({ refreshTrigger = 0 }: { refreshTrigger?: numbe
 			window.removeEventListener('albion:refresh-caps', refreshHandler);
 			window.removeEventListener('albion:model-routed', modelRoutedHandler);
 		};
-	}, [fetchCaps]);
+	}, []);
 
-	const tier = (auth.user?.tier || capsData?.tier || 'free').toLowerCase();
-	const isFree = tier === 'free';
-	const models = capsData?.caps || capsData?.models || {};
-
+	const models = caps.data?.caps || caps.data?.models || {};
 	const flashUsed = models['deepseek-v4-flash']?.used ?? 0;
 	const flashLimit = models['deepseek-v4-flash']?.limit ?? 0;
 	const proUsed = models['deepseek-v4-pro']?.used ?? 0;
 	const proLimit = models['deepseek-v4-pro']?.limit ?? 0;
 
-	const formatCapVal = (val: number) => {
-		if (val <= 0) return '0';
-		return formatTokens(val);
-	};
+	const flashStr = `${formatTokens(flashUsed)}/${formatTokens(flashLimit)}`;
+	const proStr = `${formatTokens(proUsed)}/${formatTokens(proLimit)}`;
 
-	const flashStr = isFree ? `${formatCapVal(flashUsed)}/∞` : `${formatCapVal(flashUsed)}/${formatCapVal(flashLimit)}`;
-	const proStr = isFree ? 'Locked' : `${formatCapVal(proUsed)}/${formatCapVal(proLimit)}`;
-
-	// Color coding: Green for Free tier (or yellow/red on cap), or threshold-based for paid tiers
-	let dotColor = '#10b981'; // Green default
+	let dotColor = '#10b981';
 	if (isFree) {
-		const dailyUsed = capsData?.daily_requests ?? 0;
-		const dailyLimit = capsData?.limit_requests ?? 50;
-		if (capsData?.cap_exceeded || dailyUsed >= dailyLimit) {
-			dotColor = '#ef4444'; // Red
-		} else if (dailyUsed >= dailyLimit * 0.8) {
-			dotColor = '#f59e0b'; // Yellow
-		} else {
-			dotColor = '#10b981'; // Green
-		}
+		if (lifetime.locked) dotColor = '#ef4444';
+		else if (lifetime.warning) dotColor = '#f59e0b';
 	} else {
 		let minRemaining = 1.0;
 		if (flashLimit > 0) {
@@ -136,19 +73,12 @@ export function AlbionFuelGauge({ refreshTrigger = 0 }: { refreshTrigger?: numbe
 			const r = Math.max(0, (proLimit - proUsed) / proLimit);
 			if (r < minRemaining) minRemaining = r;
 		}
-
-		if (minRemaining <= 0) {
-			dotColor = '#ef4444'; // Red
-		} else if (minRemaining < 0.2) {
-			dotColor = '#f59e0b'; // Yellow
-		} else if (minRemaining > 0.5) {
-			dotColor = '#10b981'; // Green
-		}
+		if (minRemaining <= 0) dotColor = '#ef4444';
+		else if (minRemaining < 0.2) dotColor = '#f59e0b';
 	}
 
-	const displayActiveModel = activeModel || (isFree ? 'Auto: openrouter-free' : 'Auto: deepseek-v4-flash');
-	const freeDailyUsed = capsData?.daily_requests ?? 0;
-	const freeDailyLimit = capsData?.limit_requests ?? 50;
+	const displayActiveModel = activeModel || (isFree ? 'Auto: deepseek-v4-flash' : 'Auto: deepseek-v4-flash');
+	const freePercentLabel = `${lifetime.percent.toFixed(lifetime.percent < 10 ? 1 : 0)}%`;
 
 	return (
 		<div
@@ -204,24 +134,37 @@ export function AlbionFuelGauge({ refreshTrigger = 0 }: { refreshTrigger?: numbe
 				</span>
 				<span style={{ letterSpacing: '0.02em', fontWeight: 500 }}>
 					{isFree ? (
-						<>Albion: Free Tier &nbsp;|&nbsp; {displayActiveModel} &nbsp;|&nbsp; Free Tier: {freeDailyUsed}/{freeDailyLimit} messages used today &nbsp;|&nbsp; Cost: $0.00</>
+						<>
+							Albion: Free Tier &nbsp;|&nbsp; {displayActiveModel} &nbsp;|&nbsp; Lifetime: {formatTokens(lifetime.used)}/{formatTokens(lifetime.cap)} tokens ({freePercentLabel}) &nbsp;|&nbsp; Remaining: {formatTokens(lifetime.remaining)} &nbsp;|&nbsp; Cost: {formatUsd(lifetime.costUsd)}
+						</>
 					) : (
-						<>Albion: {tier} &nbsp;|&nbsp; {displayActiveModel} &nbsp;|&nbsp; Flash: {flashStr} &nbsp;|&nbsp; Pro: {proStr} &nbsp;|&nbsp; Cost: Included</>
+						<>
+							Albion: {tier} &nbsp;|&nbsp; {displayActiveModel} &nbsp;|&nbsp; Flash: {flashStr} &nbsp;|&nbsp; Pro: {proStr} &nbsp;|&nbsp; Cost: Included
+						</>
 					)}
 				</span>
 			</div>
 
 			<div style={{ fontSize: '11px', color: 'var(--void-fg-3, #64748B)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
 				{isFree ? (
-					<span
-						style={{ color: 'var(--void-accent, #F59E0B)', cursor: 'pointer', textDecoration: 'underline' }}
-						onClick={() => window.dispatchEvent(new CustomEvent('albion:open-settings', { detail: { nav: 'account' } }))}
-					>
-						Upgrade to Pro ↗
-					</span>
+					<>
+						{lifetime.locked ? (
+							<span style={{ color: '#F87171', fontWeight: 600 }}>Upgrade required</span>
+						) : lifetime.warning ? (
+							<span style={{ color: '#F59E0B', fontWeight: 600 }}>{freePercentLabel} used</span>
+						) : null}
+						<span style={{ color: 'var(--void-fg-3, #64748B)' }} title="Blended DeepSeek V4.1 Flash estimate">
+							{formatNgn(lifetime.costNgn)}
+						</span>
+						<span
+							style={{ color: 'var(--void-accent, #F59E0B)', cursor: 'pointer', textDecoration: 'underline' }}
+							onClick={() => window.dispatchEvent(new CustomEvent('albion:open-settings', { detail: { nav: 'account' } }))}
+						>
+							Upgrade to Pro ↗
+						</span>
+					</>
 				) : null}
 			</div>
 		</div>
 	);
 }
-

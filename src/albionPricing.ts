@@ -44,9 +44,7 @@ export async function fetchAlbionPricing(): Promise<Record<string, ModelPricingI
 		} catch (e) {
 			console.warn('[ALBION] Failed to fetch live pricing, using default seed fallback:', e);
 			cachedPricing = {
-				'openrouter-free': { model: 'openrouter-free', cost_per_1k: 0, currency: 'NGN' },
-				'groq-free': { model: 'groq-free', cost_per_1k: 0, currency: 'NGN' },
-				'deepseek-v4-flash': { model: 'deepseek-v4-flash', cost_per_1k: 0.00014, currency: 'USD' },
+				'deepseek-v4-flash': { model: 'deepseek-v4-flash', cost_per_1k: 0.000156, currency: 'USD' },
 				'qwen3.6-35b-a3b': { model: 'qwen3.6-35b-a3b', cost_per_1k: 0.00025, currency: 'USD' },
 				'deepseek-v4-pro': { model: 'deepseek-v4-pro', cost_per_1k: 0.00219, currency: 'USD' },
 				'glm-5.2': { model: 'glm-5.2', cost_per_1k: 0.00175, currency: 'USD' },
