@@ -1,6 +1,7 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState, useEffect } from 'react';
 import { FileTypeIcon } from './fileTypeIcons';
 import { buildFileEditPreviewDiff, type FileEditSegment } from './agentChatSegments';
+import { TrustBadge } from './TrustBadge';
 import { useI18n } from './i18n';
 import { sliceAgentEditPreviewLines } from './pretextLayout';
 import { useTypewriter } from './useTypewriter';
@@ -168,7 +169,8 @@ export const AgentEditCard = memo(function AgentEditCard({ edit, isReverted = fa
 						title={edit.isNew ? t('agent.activity.writing', { path: name }) : t('agent.activity.editing', { path: name })}
 					/>
 				) : (
-					<span className="ref-edit-card-stats">
+					<span className="ref-edit-card-stats" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+						{edit.verification && <TrustBadge verification={edit.verification} />}
 						{isReverted ? (
 							<span className="ref-edit-card-status ref-edit-card-status--reverted">
 								{t('agent.edit.reverted')}

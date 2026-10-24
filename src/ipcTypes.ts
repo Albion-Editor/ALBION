@@ -82,6 +82,7 @@ type ChatStreamPayloadCore =
 			result: string;
 			success: boolean;
 			toolCallId: string;
+			verification?: TrustVerificationResult;
 			teamRoleScope?: TeamRoleScope;
 	  } & ChatStreamNest)
 	| ({

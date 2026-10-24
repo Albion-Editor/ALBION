@@ -16,6 +16,7 @@ import type { editor as MonacoEditorNS } from 'monaco-editor';
 import { ChatMarkdown } from './ChatMarkdown';
 import { AlbionLogin } from './AlbionLogin';
 import { AlbionFuelGauge } from './AlbionFuelGauge';
+import { AlbionCostRadar } from './AlbionCostRadar';
 import { albionSignIn, albionSignOut, useAlbionAuth } from './albionAuthStore';
 import {
 	type AgentPendingPatch,
@@ -4682,6 +4683,7 @@ function AppMainWorkspaceInner() {
 				</div>
 			) : null}
 
+			<AlbionCostRadar />
 			<AlbionFuelGauge refreshTrigger={fuelGaugeRefreshSeq} />
 		</div>
 		</ComposerActionsProvider>

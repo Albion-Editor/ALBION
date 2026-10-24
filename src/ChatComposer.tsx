@@ -13,8 +13,7 @@ import { ComposerActionsContext } from './ComposerActionsContext';
 import { ComposerModeIcon, composerModeLabel, type ComposerMode } from './ComposerPlusMenu';
 import { ComposerRichInput } from './ComposerRichInput';
 import { type ComposerSegment, type PersistedComposerAttachment } from './composerSegments';
-import { fetchAlbionPricing, getCachedAlbionPricing, type ModelPricingItem } from './albionPricing';
-import { AlbionCostRadar } from './AlbionCostRadar';
+
 import { refreshAlbionCaps, useAlbionCaps } from './albionCapsStore';
 import { formatTokens, getLifetimeStatus } from './albionFreeTier';
 import { useI18n } from './i18n';
@@ -200,26 +199,12 @@ export function ChatComposer({
 		}
 	};
 
-	const hasImageAttached = useMemo(() => {
-		return segments.some(
-			(s) =>
-				s.kind === 'file' &&
-				(Boolean(s.imageMeta) || /\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(s.path))
-		);
-	}, [segments]);
-
 	const albionAuth = useAlbionAuth();
 	const caps = useAlbionCaps();
 	const userTier = (albionAuth.user?.tier || caps.data?.tier || 'free').toLowerCase();
 	const isFreeTier = userTier === 'free';
 	const lifetime = getLifetimeStatus(caps.data);
 	const lifetimeLocked = isFreeTier && lifetime.locked;
-
-	const predictedModel = isFreeTier
-		? 'deepseek-v4-flash'
-		: hasImageAttached
-			? 'qwen3.6-35b-a3b'
-			: 'deepseek-v4-flash';
 
 	const inputCharLength = useMemo(() => {
 		let len = 0;
@@ -232,25 +217,6 @@ export function ChatComposer({
 		return len;
 	}, [segments]);
 
-	const contextEstimate = composerContextMeter?.usedEstimate?.tokens ?? 0;
-	const estimatedTokens = Math.round(inputCharLength / 4) + contextEstimate;
-
-	const [pricingMap, setPricingMap] = useState<Record<string, ModelPricingItem> | null>(getCachedAlbionPricing());
-
-	useEffect(() => {
-		let isMounted = true;
-		void fetchAlbionPricing().then((map) => {
-			if (isMounted) setPricingMap(map);
-		});
-		return () => {
-			isMounted = false;
-		};
-	}, []);
-
-	const modelPricing = pricingMap?.[predictedModel];
-	const costPer1k = modelPricing?.cost_per_1k ?? (predictedModel === 'qwen3.6-35b-a3b' ? 0.00025 : 0.000156);
-	const calculatedCost = isFreeTier ? 0 : (estimatedTokens / 1000) * costPer1k;
-	const priceFormatted = calculatedCost === 0 ? '$0.00' : `$${calculatedCost.toFixed(4)}`;
 
 	const hasContent = segments.some((s) => (s.kind === 'text' && s.text?.trim()) || s.kind === 'file') || inputCharLength > 0;
 
@@ -264,12 +230,7 @@ export function ChatComposer({
 				.filter(Boolean)
 				.join(' ')}
 		>
-			<AlbionCostRadar
-				predictedModel={predictedModel}
-				estimatedTokens={estimatedTokens}
-				isFreeTier={isFreeTier}
-				priceFormatted={priceFormatted}
-			/>
+
 			<div className={isHero ? 'ref-composer-hero-body' : 'ref-composer-stacked-body'}>
 					<ComposerRichInput
 						innerRef={richRef}

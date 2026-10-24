@@ -698,18 +698,51 @@ export function SettingsPage({
 		}
 	}, [checkoutEmail, albionUser?.email, albionUser?.id, checkoutModal, shell]);
 
-	const handleLemonSqueezyCheckout = useCallback(() => {
-		const emailToUse = (checkoutEmail || albionUser?.email || '').trim();
+	const handleCryptoCheckout = useCallback(async () => {
 		if (!checkoutModal) return;
-		const emailParam = emailToUse ? `&checkout[email]=${encodeURIComponent(emailToUse)}` : '';
-		const storeUrl = `https://albion-ide.lemonsqueezy.com/buy?tier=${checkoutModal.tier}${emailParam}`;
-		if (shell?.invoke) {
-			void shell.invoke('shell:openExternalUrl', storeUrl);
-		} else {
-			window.open(storeUrl, '_blank');
+		setCheckoutLoading(true);
+		setCheckoutError(null);
+
+		try {
+			const proxyUrl = process.env.ALBION_PROXY_URL || 'https://albion-backend-production-a88e.up.railway.app';
+			let token: string | null = null;
+			try {
+				token = ((await (window as any).ipc?.invoke?.('albion:auth:get-token')) as string) ?? null;
+			} catch {
+				// ignore
+			}
+
+			const res = await fetch(`${proxyUrl}/api/create-nowpayment-invoice`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...(token ? { Authorization: `Bearer ${token}` } : {})
+				},
+				body: JSON.stringify({
+					planTier: checkoutModal.tier,
+					userId: albionUser?.id || null,
+					email: (checkoutEmail || albionUser?.email || '').trim()
+				})
+			});
+
+			const data = (await res.json()) as { error?: string; invoice_url?: string };
+			if (!res.ok || !data.invoice_url) {
+				throw new Error(data.error || 'Failed to create crypto invoice.');
+			}
+
+			if (shell?.invoke) {
+				void shell.invoke('shell:openExternalUrl', data.invoice_url);
+			} else {
+				window.open(data.invoice_url, '_blank');
+			}
+			setCheckoutModal(null);
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : 'Crypto checkout failed.';
+			setCheckoutError(msg);
+		} finally {
+			setCheckoutLoading(false);
 		}
-		setCheckoutModal(null);
-	}, [checkoutEmail, albionUser?.email, checkoutModal, shell]);
+	}, [checkoutEmail, albionUser?.email, albionUser?.id, checkoutModal, shell]);
 	const resolvedProviderIdentity = useMemo(
 		() => resolveProviderIdentitySettings(providerIdentity),
 		[providerIdentity]
@@ -1832,60 +1865,43 @@ export function SettingsPage({
 									<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '12px' }}>
 										{[
 											{
-												id: '',
-												label: 'Auto (Smart Router)',
-												capabilityBadge: 'Med',
+												id: 'qwen/qwen3-coder-30b-a3b-instruct',
+												label: 'Qwen 3 Coder',
+												capabilityBadge: 'Free',
 												tierBadge: 'Free',
 												locked: false,
-												description: 'Best model for your tier · Automatically routes across DeepSeek Flash, Qwen 2.5 & Free pool',
+												description: 'Specialized coding model — 100,000 lifetime token cap (all tiers)',
 												lockTooltip: '',
 											},
 											{
-												id: 'deepseek-v4-flash',
-												label: 'DeepSeek V4 Flash',
+												id: 'deepseek/deepseek-v4.1-flash-1017',
+												label: 'DeepSeek V4.1 Flash',
+												capabilityBadge: 'Fast',
+												tierBadge: (albionUser?.tier === 'learner' || albionUser?.tier === 'starter' || albionUser?.tier === 'pro') ? undefined : 'Locked',
+												locked: !(albionUser?.tier === 'learner' || albionUser?.tier === 'starter' || albionUser?.tier === 'pro'),
+												description: 'Ultra-fast low-latency coding model (Learner, Starter, Pro)',
+												lockTooltip: 'Upgrade to Learner, Starter, or Pro to unlock this model.',
+											},
+											{
+												id: 'xiaomi/mimo-v2.6-flash',
+												label: 'MiMo v2.6 Flash',
 												capabilityBadge: 'Fast',
 												tierBadge: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro') ? undefined : 'Locked',
 												locked: !(albionUser?.tier === 'starter' || albionUser?.tier === 'pro'),
-												description: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro')
-													? 'Ultra-fast low-latency code generation'
-													: 'Included in Auto routing. Upgrade to Starter to select directly.',
-												lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
+												description: 'High-throughput code synthesis model (Starter, Pro)',
+												lockTooltip: 'Upgrade to Starter or Pro to unlock this model.',
 											},
 											{
-												id: 'qwen3.6-35b-a3b',
-												label: 'Qwen 2.5 Coder 32B',
-												capabilityBadge: 'Fast',
-												tierBadge: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro') ? undefined : 'Locked',
-												locked: !(albionUser?.tier === 'starter' || albionUser?.tier === 'pro'),
-												description: (albionUser?.tier === 'starter' || albionUser?.tier === 'pro')
-													? 'Specialized multilingual coding & tool call synthesis'
-													: 'Included in Auto routing. Upgrade to Starter to select directly.',
-												lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
-											},
-											{
-												id: 'deepseek-v4-pro',
-												label: 'DeepSeek V4 Pro',
+												id: 'xai/grok-4.1-fast',
+												label: 'Grok 4.1 Fast / DeepSeek v4.5',
 												capabilityBadge: 'Pro',
 												tierBadge: albionUser?.tier === 'pro' ? undefined : 'Locked',
 												locked: albionUser?.tier !== 'pro',
-												description: albionUser?.tier === 'pro'
-													? 'Complex multi-step reasoning & architecture design'
-													: 'Upgrade to Pro to unlock DeepSeek V4 Pro reasoning.',
-												lockTooltip: 'Upgrade to Pro to unlock this model.',
-											},
-											{
-												id: 'glm-5.2',
-												label: 'GLM 5.2',
-												capabilityBadge: 'Pro',
-												tierBadge: albionUser?.tier === 'pro' ? undefined : 'Locked',
-												locked: albionUser?.tier !== 'pro',
-												description: albionUser?.tier === 'pro'
-													? 'High-speed multilingual reasoning & long context'
-													: 'Upgrade to Pro to unlock GLM 5.2 reasoning.',
-												lockTooltip: 'Upgrade to Pro to unlock this model.',
+												description: 'Frontier reasoning & complex architecture synthesis (Pro only)',
+												lockTooltip: 'Upgrade to Pro tier to unlock this model.',
 											},
 										].map((m) => {
-											const isSelected = (!defaultModel && m.id === '') || defaultModel === m.id || (defaultModel === 'auto' && m.id === '');
+											const isSelected = defaultModel === m.id;
 											return (
 												<div
 													key={m.id || 'auto'}
@@ -2776,16 +2792,16 @@ export function SettingsPage({
 
 						{/* Payment Option Buttons */}
 						<div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-							{/* Paystack Button */}
+							{/* NOWPayments Crypto Button (Zero-KYC Native) */}
 							<button
 								type="button"
 								disabled={checkoutLoading}
-								onClick={handlePaystackCheckout}
+								onClick={handleCryptoCheckout}
 								style={{
 									width: '100%',
-									padding: '11px 16px',
+									padding: '12px 16px',
 									borderRadius: '8px',
-									backgroundColor: '#0AA5EC',
+									background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
 									border: 'none',
 									color: '#FFFFFF',
 									fontSize: '13px',
@@ -2796,43 +2812,55 @@ export function SettingsPage({
 									justifyContent: 'center',
 									gap: '8px',
 									transition: 'all 0.15s ease',
-									boxShadow: '0 2px 8px rgba(10, 165, 236, 0.3)',
+									boxShadow: '0 2px 10px rgba(16, 185, 129, 0.35)',
 								}}
 							>
 								{checkoutLoading ? (
-									'Connecting to Paystack...'
+									'Generating Crypto Invoice...'
 								) : (
 									<>
-										<span>Pay with Paystack (₦ Naira / Nigerian &amp; African Cards)</span>
+										<span style={{ fontSize: '15px' }}>₿</span>
+										<span>Pay with Crypto (USDT on Tron TRC20) — Zero KYC</span>
 										<span>→</span>
 									</>
 								)}
 							</button>
 
-							{/* Lemon Squeezy Button */}
+							{/* Tron TRC20 Low Fee Network Advisory */}
+							<div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', fontSize: '11px', textAlign: 'center', color: 'var(--void-fg-1, #cbd5e1)', lineHeight: 1.5 }}>
+								<div style={{ fontWeight: 600, color: '#34D399' }}>
+									⚡ Network: USDT on Tron (TRC20) — Lowest Fees & Instant Settlement
+								</div>
+								<div style={{ color: 'var(--void-fg-2, #94a3b8)', marginTop: '2px', fontSize: '10px' }}>
+									Pay securely with Crypto (USDT on Tron TRC20). Zero KYC required, non-custodial and instant in-app activation. Fiat cards (Paystack) coming soon.
+								</div>
+							</div>
+
+							{/* Paystack Button (Disabled - Coming Soon Fiat) */}
 							<button
 								type="button"
-								disabled={checkoutLoading}
-								onClick={handleLemonSqueezyCheckout}
+								disabled={true}
+								onClick={handlePaystackCheckout}
+								title="Coming Soon — Fiat payments via Paystack launching soon"
 								style={{
 									width: '100%',
-									padding: '11px 16px',
+									padding: '10px 16px',
 									borderRadius: '8px',
-									backgroundColor: 'var(--surface-control-bg, rgba(255, 255, 255, 0.08))',
-									border: '1px solid var(--void-border, rgba(255, 255, 255, 0.15))',
-									color: 'var(--void-fg-0, #f8fafc)',
-									fontSize: '13px',
+									backgroundColor: 'var(--surface-control-bg, rgba(255, 255, 255, 0.04))',
+									border: '1px solid var(--void-border, rgba(255, 255, 255, 0.1))',
+									color: 'var(--void-fg-2, #64748b)',
+									fontSize: '12px',
 									fontWeight: 600,
-									cursor: checkoutLoading ? 'default' : 'pointer',
+									cursor: 'not-allowed',
+									opacity: 0.6,
 									display: 'flex',
 									alignItems: 'center',
 									justifyContent: 'center',
 									gap: '8px',
-									transition: 'all 0.15s ease',
 								}}
 							>
-								<span>Pay with Lemon Squeezy (USD / International Cards)</span>
-								<span>→</span>
+								<span>Paystack (₦ Naira / Fiat Cards) — Coming Soon</span>
+								<span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.06)' }}>Coming Soon</span>
 							</button>
 						</div>
 

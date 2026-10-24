@@ -2,6 +2,7 @@
  * Agent 实时回合的块级状态：避免依赖整条 streaming 字符串反复 segmentAssistantContentUnified。
  */
 import type { TFunction } from './i18n';
+import type { TrustVerificationResult } from './ipcTypes';
 import {
 	buildStreamingToolSegments,
 	finalizeAssistantSegmentsForRender,
@@ -31,6 +32,7 @@ export type LiveToolBlock = {
 	phase: LiveToolPhase;
 	success?: boolean;
 	resultText?: string;
+	verification?: TrustVerificationResult;
 };
 
 export type LiveAgentBlock =
@@ -259,7 +261,8 @@ function applyToolResultRoot(
 	toolUseId: string,
 	name: string,
 	result: string,
-	success: boolean
+	success: boolean,
+	verification?: TrustVerificationResult
 ): LiveAgentBlock[] {
 	const copy = blocks.slice();
 	let j = findToolBlockIndexByUseId(copy, toolUseId);
@@ -280,6 +283,7 @@ function applyToolResultRoot(
 			success,
 			resultText: result,
 			toolUseId: toolUseId || cur.toolUseId,
+			...(verification ? { verification } : {}),
 		};
 		return copy;
 	}
@@ -296,6 +300,7 @@ function applyToolResultRoot(
 			phase: 'done',
 			success,
 			resultText: result,
+			...(verification ? { verification } : {}),
 		},
 	];
 }
@@ -312,6 +317,7 @@ export type LiveAgentChatPayload =
 			success: boolean;
 			toolCallId: string;
 			parentToolCallId?: string;
+			verification?: TrustVerificationResult;
 	  }
 	| { type: 'tool_progress'; name: string; phase: string; detail?: string; parentToolCallId?: string };
 
@@ -355,7 +361,7 @@ export function applyLiveAgentChatPayload(
 
 	if (payload.type === 'tool_result') {
 		if (payload.parentToolCallId) return state;
-		blocks = applyToolResultRoot(blocks, payload.toolCallId, payload.name, payload.result, payload.success);
+		blocks = applyToolResultRoot(blocks, payload.toolCallId, payload.name, payload.result, payload.success, payload.verification);
 		return { blocks };
 	}
 
@@ -505,7 +511,8 @@ export function liveBlocksToAssistantSegments(blocks: LiveAgentBlock[], t: TFunc
 						b.argsJson || '{}',
 						b.resultText ?? '',
 						b.success !== false,
-						t
+						t,
+						b.verification
 					)
 				);
 			}

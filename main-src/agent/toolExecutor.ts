@@ -2109,6 +2109,7 @@ async function executeWriteToFile(call: ToolCall, hooks: ToolExecutionHooks, exe
 			name: call.name,
 			content: `Error: verification failed for ${relPath}${retryMsg}.\n\n${hookRes.errorContext || ''}`,
 			isError: true,
+			verification: hookRes.verification,
 		};
 	}
 
@@ -2118,6 +2119,7 @@ async function executeWriteToFile(call: ToolCall, hooks: ToolExecutionHooks, exe
 		name: call.name,
 		content: `${existed ? 'Updated' : 'Created'} ${relPath} (${lineCount} lines)`,
 		isError: false,
+		verification: hookRes.verification,
 	};
 }
 
@@ -2217,6 +2219,7 @@ async function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, exec
 				name: call.name,
 				content: `Error: verification failed for ${relPath}${retryMsg}.\n\n${hookRes.errorContext || ''}`,
 				isError: true,
+				verification: hookRes.verification,
 			};
 		}
 		return {
@@ -2224,6 +2227,7 @@ async function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, exec
 			name: call.name,
 			content: `Applied ${count} replacement(s) in ${relPath} (first at line ${firstLineNo})`,
 			isError: false,
+			verification: hookRes.verification,
 		};
 	}
 
@@ -2303,6 +2307,7 @@ async function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, exec
 			name: call.name,
 			content: `Error: verification failed for ${relPath}${retryMsg}.\n\n${hookRes.errorContext || ''}`,
 			isError: true,
+			verification: hookRes.verification,
 		};
 	}
 
@@ -2311,6 +2316,7 @@ async function executeStrReplace(call: ToolCall, hooks: ToolExecutionHooks, exec
 		name: call.name,
 		content: `Applied edit to ${relPath} at line ${lineNumber}`,
 		isError: false,
+		verification: hookRes.verification,
 	};
 }
 

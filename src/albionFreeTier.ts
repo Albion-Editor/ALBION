@@ -1,4 +1,4 @@
-export const FREE_TIER_TOKEN_CAP = 200_000;
+export const FREE_TIER_TOKEN_CAP = 100_000;
 export const FREE_TIER_WARNING_PERCENT = 90;
 export const BLENDED_COST_PER_MILLION_USD = 0.156;
 export const USD_TO_NGN = 1370;

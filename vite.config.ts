@@ -14,6 +14,7 @@ export default defineConfig({
 			'@resources': path.resolve(__dirname, 'resources'),
 		},
 	},
+	assetsInclude: ['**/*.png', '**/*.jpg', '**/*.svg', '**/*.ico'],
 	build: {
 		target: 'esnext',
 		outDir: 'dist',

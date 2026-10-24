@@ -37,7 +37,7 @@ export function AlbionFuelGauge({ refreshTrigger = 0 }: { refreshTrigger?: numbe
 			const custom = e as CustomEvent<{ model?: string; provider?: string }>;
 			if (custom.detail?.model) {
 				const m = custom.detail.model;
-				setActiveModel(m.startsWith('Auto') ? m : `Auto: ${m}`);
+				setActiveModel(m.replace(/^Auto:\s*/i, ''));
 			}
 		};
 
@@ -77,7 +77,7 @@ export function AlbionFuelGauge({ refreshTrigger = 0 }: { refreshTrigger?: numbe
 		else if (minRemaining < 0.2) dotColor = '#f59e0b';
 	}
 
-	const displayActiveModel = activeModel || (isFree ? 'Auto: deepseek-v4-flash' : 'Auto: deepseek-v4-flash');
+	const displayActiveModel = activeModel || (isFree ? 'Qwen 3 Coder' : 'DeepSeek V4.1 Flash');
 	const freePercentLabel = `${lifetime.percent.toFixed(lifetime.percent < 10 ? 1 : 0)}%`;
 
 	return (

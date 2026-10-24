@@ -444,6 +444,7 @@ export function runChatStream(
 					const messagesForAgent = doAtExpand
 						? await resolveMessagesForSend(sendMessages, workspaceRoot)
 						: sendMessages;
+					let lastWrittenPath: string | null = null;
 					await runAgentLoop(
 						settings,
 						messagesForAgent,
@@ -486,17 +487,18 @@ export function runChatStream(
 							onContextCompactStateChange: (state) =>
 								saveContextCompactState(threadId, state),
 							toolHooks: {
-								beforeWrite: ({ path, previousContent }) => {
+								beforeWrite: ({ path: filePath, previousContent }) => {
+									lastWrittenPath = filePath;
 									const snapshots = agentRevertSnapshotsByThread.get(threadId);
-									if (!snapshots || snapshots.has(path)) {
-										touchFileInThread(threadId, path, 'modified', false);
+									if (!snapshots || snapshots.has(filePath)) {
+										touchFileInThread(threadId, filePath, 'modified', false);
 										return;
 									}
-									snapshots.set(path, previousContent);
+									snapshots.set(filePath, previousContent);
 									flushThreadSnapshots(threadId, snapshots);
 									touchFileInThread(
 										threadId,
-										path,
+										filePath,
 										previousContent === null ? 'created' : 'modified',
 										previousContent === null
 									);
@@ -523,7 +525,17 @@ export function runChatStream(
 								send({ threadId, type: 'tool_call', name, args: JSON.stringify(args), toolCallId }),
 							onToolResult: (name, result, success, toolCallId) => {
 								incrementThreadAgentToolCallCount(threadId);
-								send({ threadId, type: 'tool_result', name, result, success, toolCallId });
+								const verification = lastWrittenPath ? getVerification(lastWrittenPath) : undefined;
+								send({
+									threadId,
+									type: 'tool_result',
+									name,
+									result,
+									success,
+									toolCallId,
+									...(verification ? { verification } : {}),
+								});
+								lastWrittenPath = null;
 							},
 							onDone: (full, usage) => {
 								updateLastAssistant(threadId, full);

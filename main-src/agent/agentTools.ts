@@ -4,6 +4,7 @@
  */
 
 import type { AnthropicToolResultContent, AnthropicToolSchema } from '../llm/anthropicBeta.js';
+import type { TrustVerificationResult } from './trustEngine.js';
 import { buildAnthropicToolSchemas, buildOpenAIToolSchemas } from './toolSchemaCache.js';
 
 export type AgentToolDef = {
@@ -35,6 +36,7 @@ export type ToolResult = {
 	content: string;
 	structuredContent?: AnthropicToolResultContent;
 	isError: boolean;
+	verification?: TrustVerificationResult;
 };
 
 /** 只读工具：可安全并发执行，不修改文件系统或运行副作用命令（含 MCP 资源工具） */

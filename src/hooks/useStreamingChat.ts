@@ -760,6 +760,7 @@ export function useStreamingChatSubscription(runtime: StreamingSubscriptionRunti
 					result: truncated,
 					success: payload.success,
 					toolCallId: payload.toolCallId,
+					...(payload.verification ? { verification: payload.verification } : {}),
 				});
 			} else if (payload.type === 'tool_progress') {
 				if (!payload.parentToolCallId) {

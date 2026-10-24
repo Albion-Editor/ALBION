@@ -13,6 +13,7 @@ import {
 	assistantDisplayStripQuestionBlock,
 	stripPlanDocumentForChatDisplay,
 } from './planParser';
+import type { TrustVerificationResult } from './ipcTypes';
 
 /**
  * 将助手消息拆成 Markdown / 活动行 / 内联文件编辑卡片（Cursor 风格）。
@@ -39,6 +40,7 @@ export type FileEditSegment = {
 	newStr?: string;
 	isNew?: boolean;
 	isStreaming?: boolean;
+	verification?: TrustVerificationResult;
 };
 
 export type ActivityStatus = 'info' | 'pending' | 'success' | 'error';
@@ -90,6 +92,7 @@ export type ToolCallSegment = {
 	args: Record<string, unknown>;
 	result?: string;
 	success?: boolean;
+	verification?: TrustVerificationResult;
 };
 
 export type PlanTodoSegment = {
@@ -1523,11 +1526,20 @@ export function segmentsFromClosedToolRound(
 	argsJson: string,
 	result: string,
 	success: boolean,
-	t: TFunction
+	t: TFunction,
+	verification?: TrustVerificationResult
 ): AssistantSegment[] {
 	const safe = result.split('</tool_result>').join('</tool\u200c_result>');
 	const wire = `\n<tool_call tool="${name}">${argsJson}</tool_call>\n<tool_result tool="${name}" success="${success ? 'true' : 'false'}">${safe}</tool_result>\n`;
-	return extractToolSegments(wire, t).segments;
+	const segs = extractToolSegments(wire, t).segments;
+	if (verification) {
+		for (const s of segs) {
+			if (s.type === 'file_edit' || s.type === 'tool_call') {
+				s.verification = verification;
+			}
+		}
+	}
+	return segs;
 }
 
 /** 合并相邻 markdown 并折叠 activity_group，供 live blocks 与解析结果共用 */

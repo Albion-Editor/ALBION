@@ -217,92 +217,84 @@ export function useSettings(
 				};
 			});
 
-		// Auto (Smart Router) — always available for all tiers
-		const autoItem: ModelPickerItem = {
-			id: '',
-			label: 'Auto (Smart Router)',
-			capabilityBadge: 'Med',
-			tierBadge: 'Free',
-			description: 'Best model for your tier · Automatically routes across DeepSeek Flash, Qwen 2.5 & Free pool',
-			providerLabel: 'Albion AI',
-		};
-
-		// Flash & Coder models — routed automatically in Free tier, selectable in Starter/Pro
+				// Manual Model Selection (Smart Routing and Premium Toggle removed)
+		const isLearnerOrAbove = albionTier === 'learner' || albionTier === 'starter' || albionTier === 'pro';
 		const isStarterOrPro = albionTier === 'starter' || albionTier === 'pro';
 		const isPro = albionTier === 'pro';
 
 		const nativeModels: ModelPickerItem[] = [
 			{
-				id: 'deepseek-v4-flash',
-				label: 'DeepSeek V4 Flash',
+				id: 'qwen/qwen3-coder-30b-a3b-instruct',
+				label: 'Qwen 3 Coder',
+				capabilityBadge: 'Free',
+				tierBadge: 'Free',
+				description: 'Specialized coding model (100,000 lifetime token cap)',
+				providerLabel: 'Albion AI',
+				locked: false,
+			},
+			{
+				id: 'deepseek/deepseek-v4.1-flash-1017',
+				label: 'DeepSeek V4.1 Flash',
+				capabilityBadge: 'Fast',
+				tierBadge: isLearnerOrAbove ? undefined : 'Locked',
+				description: 'Ultra-fast low-latency coding model (Learner, Starter, Pro)',
+				providerLabel: 'Albion AI',
+				locked: !isLearnerOrAbove,
+				lockTooltip: 'Upgrade to Learner, Starter, or Pro to unlock this model.',
+			},
+			{
+				id: 'xiaomi/mimo-v2.6-flash',
+				label: 'MiMo v2.6 Flash',
 				capabilityBadge: 'Fast',
 				tierBadge: isStarterOrPro ? undefined : 'Locked',
-				description: isStarterOrPro
-					? 'Ultra-fast low-latency code generation'
-					: 'Routed automatically in Free tier. Upgrade to Starter to select directly.',
+				description: 'High-throughput code synthesis model (Starter, Pro)',
 				providerLabel: 'Albion AI',
 				locked: !isStarterOrPro,
-				lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
+				lockTooltip: 'Upgrade to Starter or Pro to unlock this model.',
 			},
 			{
-				id: 'qwen3.6-35b-a3b',
-				label: 'Qwen 2.5 Coder 32B',
-				capabilityBadge: 'Fast',
-				tierBadge: isStarterOrPro ? undefined : 'Locked',
-				description: isStarterOrPro
-					? 'Specialized multilingual coding & tool call synthesis'
-					: 'Routed automatically in Free tier. Upgrade to Starter to select directly.',
-				providerLabel: 'Albion AI',
-				locked: !isStarterOrPro,
-				lockTooltip: 'Upgrade to Starter to unlock direct selection (included in Auto router).',
-			},
-			{
-				id: 'deepseek-v4-pro',
-				label: 'DeepSeek V4 Pro',
+				id: 'deepseek/deepseek-v4.5-instruct',
+				label: 'DeepSeek V4.5 Instruct',
 				capabilityBadge: 'Pro',
 				tierBadge: isPro ? undefined : 'Locked',
-				description: isPro
-					? 'Complex multi-step reasoning & architecture design'
-					: 'Upgrade to Pro to unlock DeepSeek V4 Pro reasoning.',
+				description: 'Frontier-class deep reasoning & architecture synthesis (Pro only)',
 				providerLabel: 'Albion AI',
 				locked: !isPro,
-				lockTooltip: 'Upgrade to Pro to unlock this model.',
+				lockTooltip: 'Upgrade to Pro tier to unlock this model.',
 			},
 			{
-				id: 'glm-5.2',
-				label: 'GLM 5.2',
+				id: 'xai/grok-4.1-fast',
+				label: 'Grok 4.1 Fast',
 				capabilityBadge: 'Pro',
 				tierBadge: isPro ? undefined : 'Locked',
-				description: isPro
-					? 'High-speed multilingual reasoning & long context'
-					: 'Upgrade to Pro to unlock GLM 5.2 reasoning.',
+				description: 'xAI frontier reasoning model (Pro only)',
 				providerLabel: 'Albion AI',
 				locked: !isPro,
-				lockTooltip: 'Upgrade to Pro to unlock this model.',
+				lockTooltip: 'Upgrade to Pro tier to unlock this model.',
 			},
 		];
 
-		return [autoItem, ...nativeModels, ...userItems];
+		return [...nativeModels, ...userItems];
 	}, [enabledModelIds, modelEntries, modelProviders, t, albionTier]);
 
 	const modelPillLabel = useMemo(() => {
-		if (!defaultModel.trim() || defaultModel === 'auto' || defaultModel === 'albion.model.auto') {
-			return 'Auto (Smart Router)';
+		if (defaultModel === 'deepseek/deepseek-v4.1-flash-1017' || defaultModel === 'deepseek-v4-flash') {
+			return 'DeepSeek V4.1 Flash';
 		}
-		if (defaultModel === 'deepseek-v4-flash') {
-			return 'DeepSeek V4 Flash';
+		if (defaultModel === 'xiaomi/mimo-v2.6-flash' || defaultModel === 'mimo') {
+			return 'MiMo v2.6 Flash';
 		}
-		if (defaultModel === 'qwen3.6-35b-a3b' || defaultModel === 'qwen-2.5-coder') {
-			return 'Qwen 2.5 Coder';
+		if (defaultModel === 'xai/grok-4.1-fast' || defaultModel === 'deepseek-v4-pro') {
+			return 'Grok 4.1 Fast';
 		}
-		if (defaultModel === 'deepseek-v4-pro') {
-			return 'DeepSeek V4 Pro';
+		if (defaultModel === 'deepseek/deepseek-v4.5-instruct') {
+			return 'DeepSeek V4.5 Instruct';
 		}
-		if (defaultModel === 'glm-5.2') {
-			return 'GLM 5.2';
+		if (defaultModel === 'qwen/qwen3-coder-30b-a3b-instruct' || defaultModel === 'qwen3.6-35b-a3b') {
+			return 'Qwen 3 Coder';
 		}
 		const e = modelEntries.find((x) => x.id === defaultModel);
-		return e ? e.displayName.trim() || e.requestName || defaultModel : defaultModel;
+		return e ? e.displayName.trim() || e.requestName || defaultModel : 'Qwen 3 Coder';
 	}, [defaultModel, modelEntries]);
 
 	// ── Callbacks ──

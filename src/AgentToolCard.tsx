@@ -1,5 +1,6 @@
 import { memo, useState } from 'react';
 import type { ToolCallSegment } from './agentChatSegments';
+import { TrustBadge } from './TrustBadge';
 import { useI18n } from './i18n';
 
 const TOOL_ICONS: Record<string, string> = {
@@ -111,6 +112,7 @@ export const AgentToolCard = memo(function AgentToolCard({ segment }: Props) {
 				<span className="ref-tool-card-icon">{icon}</span>
 				<span className="ref-tool-card-label">{label}</span>
 				<span className="ref-tool-card-summary" title={summary}>{summary}</span>
+				{segment.verification && <TrustBadge verification={segment.verification} />}
 				{hasResult && (
 					<span className={`ref-tool-card-status ${isSuccess ? 'ref-tool-card-status--ok' : 'ref-tool-card-status--err'}`}>
 						{isSuccess ? '✓' : '✗'}
