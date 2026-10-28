@@ -6,8 +6,6 @@ import { AgentWorkspaceLauncher } from "./AgentWorkspaceLauncher";
 import type { WorkspaceLauncherTool } from "./workspaceLaunchers";
 import { DevProfiler } from "../devProfiler";
 
-// agent rightsidebarview
-
 export type AgentRightSidebarView =
   | "git"
   | "plan"
@@ -40,7 +38,6 @@ function truncateHeaderTitle(input: string, maxCodePoints = 18): string {
     : `${chars.slice(0, Math.max(1, maxCodePoints - 1)).join("")}…`;
 }
 
-/** Agent 布局中间列：上下文条 + 右侧栏切换 + 对话面板；memo 以便在 Git 等兄弟域重渲染时跳过本列 reconciliation */
 export const AgentAgentCenterColumn = memo(
   function AgentAgentCenterColumn({
     t,
